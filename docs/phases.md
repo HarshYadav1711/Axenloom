@@ -183,7 +183,7 @@ Create/delete toolbar, history
 
 ## Phase 5 — Editing tools
 
-**Status:** complete (pending user commit)
+**Status:** complete
 
 ### Scope
 
@@ -228,20 +228,45 @@ Phase 5 report delivered; wait for approval before Phase 6.
 
 ## Phase 6 — Undo/redo
 
+**Status:** complete (pending user commit)
+
 ### Scope
 
-Snapshot history; atomic transactions; shortcuts; redo invalidation; tests
+Immutable snapshot history; action-boundary transactions for create/delete/drag/resize; Undo/Redo toolbar; Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y; redo invalidation; selection restoration; capacity 100; focused tests.
+
+### Expected files
+
+- `src/state/history.ts` — snapshot stacks, commit/undo/redo, equality helpers
+- `src/state/history.test.ts`
+- Keyboard history helpers in `src/state/keyboard.ts`
+- `EditActionsBar` Undo/Redo controls
+- `CanvasWorkspace` transaction integration
 
 ### Acceptance criteria
 
-- Undo/redo for create/move/resize/delete
-- Commits at action boundaries
-- New edit after undo clears redo
-- Viewport not in history (per assumption)
+- One history transaction per completed meaningful create, delete (any count), drag, or resize
+- Selection-only, pan, zoom, marquee, cancelled, and no-op gestures do not write history or clear redo
+- Undo/Redo restore nodes (ids, order, geometry) and reconciled selection
+- Viewport and tool mode unchanged by history
+- New edit after undo clears future
+- Toolbar and shortcuts reflect real availability; blocked mid-gesture and in editable fields
+- Full regression suite green
+
+### Verification
+
+`npm run typecheck && npm run lint && npm run test && npm run build` plus browser undo/redo checks.
+
+### Excluded
+
+Persistence, collaboration, command frameworks, group transforms, copy/paste, history UI timelines.
+
+### Stopping conditions
+
+Phase 6 report delivered; wait for approval before Phase 7.
 
 ### Proposed commit message
 
-`feat: add snapshot undo and redo for document edits`
+`feat: implement transactional undo and redo for canvas edits`
 
 ---
 

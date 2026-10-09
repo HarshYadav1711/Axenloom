@@ -127,7 +127,15 @@ Create and delete are discrete document actions (not interaction modes). They ru
 - **Delete Selection:** `deleteSelectedNodes` removes all selected IDs in one immutable filter; `reconcileSelection` clears stale IDs. Empty selection and active gestures block the action.
 - **Keyboard:** window `keydown` for Delete/Backspace when `shouldHandleDeleteKey` allows (not in input/textarea/contenteditable; no Ctrl/Cmd/Alt). Same pathway as the toolbar.
 - **Chrome:** `EditActionsBar` in App; document mutations owned by `CanvasWorkspace` via `CanvasEditorHandle` (`addRectangle` / `deleteSelection`).
-- **Phase 6 boundary:** one Add click = one future history transaction; one Delete (any count) = one transaction. No history stacks in Phase 5.
+- **Phase 6 boundary:** one Add click = one history transaction; one Delete (any count) = one transaction.
+
+### Phase 6 snapshot history (implemented)
+
+- **Model:** `HistoryStacks { past, future }` of `DocumentSnapshot { nodes, selection }` in `src/state/history.ts`. Authoritative present remains React `nodes`/`selection` in `CanvasWorkspace`.
+- **Transactions:** commit only at completed meaningful edits (create, delete, drag, resize). Push pre-edit snapshot to `past`, clear `future`. Capacity `HISTORY_CAPACITY = 100`.
+- **No history for:** selection-only, marquee, pan, zoom, tool switches, cancelled gestures, no-op geometry (`GEOMETRY_EPSILON = 1e-6`).
+- **Drag/resize:** baseline captured before selection change at gesture start; live updates without history writes; pointer-up applies final geometry then commits if changed; cancel restores origin without commit.
+- **Undo/Redo:** restore cloned snapshots with `reconcileSelection`; viewport and `EditorTool` unchanged. Toolbar + Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y (ignored in editable fields / mid-gesture / key-repeat).
 
 ## Editor modes (internal decision)
 
@@ -145,13 +153,13 @@ Space-temporary Hand mode is a later enhancement with keyboard-focus safeguards.
 - Live highlight updates on pointer move, not only on release.
 - Geometry functions are pure and tested independently of React.
 
-## History strategy (planned)
+## History strategy (implemented)
 
-- Snapshot history of document node arrays (and selection if needed for UX consistency — decide at Phase 6).
-- Undoable: create, move, resize, delete.
-- Commit at gesture/action boundaries, not every move event.
+- Snapshot history of document nodes + selection (`DocumentSnapshot`).
+- Undoable: create, move, resize, delete (one transaction each at action boundaries).
 - New edit after undo clears the redo branch.
-- **Viewport is excluded** from undo/redo (internal assumption unless assignment text says otherwise).
+- **Viewport is excluded** from undo/redo (internal assumption).
+- Selection restoration: pre-edit selection is stored; restored via `reconcileSelection` so stale ids cannot linger.
 
 ## State ownership
 

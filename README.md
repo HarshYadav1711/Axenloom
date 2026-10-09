@@ -56,13 +56,16 @@ Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDra
 
 See `docs/Architecture.md` for full detail.
 
-## Controls (Phase 5)
+## Controls (Phase 6)
 
 | Input | Behavior |
 | --- | --- |
 | Hand / Select buttons | Switch editor mode (`aria-pressed`; disabled mid-gesture) |
 | Add | Create a 160×100 world-unit rectangle near the visible SVG center |
 | Delete | Remove all selected nodes (disabled when selection empty or mid-gesture) |
+| Undo / Redo | Document history (disabled when unavailable or mid-gesture) |
+| Ctrl/Cmd+Z | Undo |
+| Ctrl/Cmd+Shift+Z or Ctrl+Y | Redo |
 | Delete / Backspace keys | Same as Delete when editor is idle and focus is not in a text field |
 | Drag empty background (Hand) | Pan viewport; clears selection |
 | Drag empty background (Select) | World-space marquee with live intersection highlight |
@@ -72,20 +75,23 @@ See `docs/Architecture.md` for full detail.
 | Mouse wheel over workspace | Cursor-centered zoom (ignored during drag/resize/marquee) |
 | Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
 
-Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize. New nodes use a 24px screen-space cascade (wraps every 8) so repeated Add does not stack identically. Create/delete never alter pan/zoom.
+History is snapshot-based at action boundaries (one undo step per completed create, delete, drag, or resize). Viewport pan/zoom and tool mode are not in history. Selection-only, cancelled, and no-op gestures do not create history entries. A new edit after undo clears redo. History capacity is 100 edits.
 
-## Current status (Phase 5)
+Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize. New nodes use a 24px screen-space cascade (wraps every 8) so repeated Add does not stack identically. Create/delete/undo/redo never alter pan/zoom.
+
+## Current status (Phase 6)
 
 **Implemented**
 
 - Viewport, nodes, selection, drag, and four-corner resize
 - Hand / Select modes and real-time marquee
 - Viewport-aware Add Rectangle and selection Delete
-- Safe keyboard Delete/Backspace
+- Snapshot undo/redo with toolbar and keyboard shortcuts
 
 **Not implemented yet**
 
-- Undo/redo
+- Hardening / visual polish (Phase 7)
+- Submission packaging (Phase 8)
 
 ## Planned phases
 
@@ -94,8 +100,8 @@ Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict
 2. Node rendering and movement — complete
 3. Node resizing — complete
 4. Marquee selection — complete
-5. Editing tools ← **current**
-6. Undo/redo
+5. Editing tools — complete
+6. Undo/redo ← **current**
 7. Hardening and visual refinement
 8. Final acceptance and submission
 

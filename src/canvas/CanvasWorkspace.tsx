@@ -31,14 +31,32 @@ import {
   createInitialNodes,
   deleteSelectedNodes,
   emptySelection,
+  findNode,
   moveNodeFromOrigin,
   reconcileSelection,
   replaceNode,
   resizeNodeFromOrigin,
   selectOnly,
 } from '../state/document'
+import {
+  canRedo,
+  canUndo,
+  commitTransaction,
+  createSnapshot,
+  EMPTY_HISTORY,
+  nodeGeometryEqual,
+  nodesEqual,
+  redoTransaction,
+  undoTransaction,
+  type DocumentSnapshot,
+  type HistoryStacks,
+} from '../state/history'
 import { createNodeId } from '../state/ids'
-import { shouldHandleDeleteKey } from '../state/keyboard'
+import {
+  resolveHistoryShortcut,
+  shouldHandleDeleteKey,
+  shouldHandleHistoryKey,
+} from '../state/keyboard'
 import { placeNewNodeRect } from '../state/placement'
 import {
   DEFAULT_TOOL,
@@ -81,25 +99,32 @@ export type CanvasEditorHandle = {
   addRectangle: () => boolean
   /** Returns false when blocked or selection empty. */
   deleteSelection: () => boolean
+  /** Returns false when blocked or past is empty. */
+  undo: () => boolean
+  /** Returns false when blocked or future is empty. */
+  redo: () => boolean
+}
+
+export type HistoryAvailability = {
+  canUndo: boolean
+  canRedo: boolean
 }
 
 type CanvasWorkspaceProps = {
   tool?: EditorTool
   onInteractionActiveChange?: (active: boolean) => void
   onSelectionChange?: (count: number) => void
+  onHistoryChange?: (availability: HistoryAvailability) => void
 }
 
 /**
  * Interactive SVG workspace.
- * Phase 5: create/delete rectangles plus Phase 1–4 interactions.
+ * Phase 6: snapshot undo/redo for create, delete, drag, and resize.
  *
  * Coordinate assumption: SVG has no viewBox; user units = CSS pixels.
  *
- * Wheel zoom is ignored during node drag, resize, and marquee.
- * Resize handles appear only when exactly one node is selected (internal).
- *
- * Create/delete are discrete document actions (one click = one future
- * history transaction in Phase 6). They refuse while a gesture is active.
+ * Document history is action-boundary only. Viewport, tool mode, marquee,
+ * and selection-only actions are excluded from history stacks.
  */
 const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
   function CanvasWorkspace(
@@ -107,6 +132,7 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       tool = DEFAULT_TOOL,
       onInteractionActiveChange,
       onSelectionChange,
+      onHistoryChange,
     },
     ref,
   ) {
@@ -117,11 +143,14 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
   const nodesRef = useRef<CanvasNode[]>([])
   const selectionRef = useRef<Selection>(emptySelection())
   const viewportRef = useRef<Viewport>(DEFAULT_VIEWPORT)
+  const historyRef = useRef<HistoryStacks>(EMPTY_HISTORY)
+  const gestureBaselineRef = useRef<DocumentSnapshot | null>(null)
   const creationIndexRef = useRef(0)
 
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [nodes, setNodes] = useState<CanvasNode[]>(() => createInitialNodes())
   const [selection, setSelection] = useState<Selection>(() => emptySelection())
+  const [history, setHistory] = useState<HistoryStacks>(EMPTY_HISTORY)
   const [interaction, setInteraction] =
     useState<InteractionState>(IDLE_INTERACTION)
 
@@ -137,6 +166,29 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
   useEffect(() => {
     viewportRef.current = viewport
   }, [viewport])
+
+  useEffect(() => {
+    historyRef.current = history
+    onHistoryChange?.({
+      canUndo: canUndo(history),
+      canRedo: canRedo(history),
+    })
+  }, [history, onHistoryChange])
+
+  const applyPresent = useCallback((snapshot: DocumentSnapshot) => {
+    nodesRef.current = snapshot.nodes
+    selectionRef.current = snapshot.selection
+    setNodes(snapshot.nodes)
+    setSelection(snapshot.selection)
+  }, [])
+
+  const recordTransaction = useCallback((before: DocumentSnapshot) => {
+    setHistory((current) => {
+      const next = commitTransaction(current, before)
+      historyRef.current = next
+      return next
+    })
+  }, [])
 
   const setInteractionState = useCallback((next: InteractionState) => {
     interactionRef.current = next
@@ -180,8 +232,72 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
         current.pointerId === pointerId
       ) {
         if (options.cancelled) {
-          setNodes((nodesState) => replaceNode(nodesState, current.originNode))
+          const restored = replaceNode(nodesRef.current, current.originNode)
+          nodesRef.current = restored
+          setNodes(restored)
+          gestureBaselineRef.current = null
+          setInteractionState(IDLE_INTERACTION)
+          releaseCapture(pointerId)
+          return
         }
+
+        const vp = viewportRef.current
+        let nextNodes = nodesRef.current
+
+        if (current.mode === 'nodeDrag') {
+          if (options.endScreen) {
+            const crossed =
+              current.hasMoved ||
+              hasExceededDragThreshold(
+                current.startScreen,
+                options.endScreen,
+              )
+            if (crossed) {
+              const endWorld = screenToWorld(options.endScreen, vp)
+              const deltaWorld = worldDeltaBetween(
+                current.startWorld,
+                endWorld,
+              )
+              nextNodes = moveNodeFromOrigin(
+                nodesRef.current,
+                current.nodeId,
+                current.originNode,
+                deltaWorld,
+              )
+            } else {
+              nextNodes = replaceNode(nodesRef.current, current.originNode)
+            }
+          }
+        } else if (options.endScreen) {
+          const endWorld = screenToWorld(options.endScreen, vp)
+          const deltaWorld = worldDeltaBetween(current.startWorld, endWorld)
+          const nextRect = resizeRect(
+            current.originNode,
+            current.handle,
+            deltaWorld,
+          )
+          nextNodes = resizeNodeFromOrigin(
+            nodesRef.current,
+            current.nodeId,
+            current.originNode,
+            nextRect,
+          )
+        }
+
+        nodesRef.current = nextNodes
+        setNodes(nextNodes)
+
+        const baseline = gestureBaselineRef.current
+        gestureBaselineRef.current = null
+        const finalNode = findNode(nextNodes, current.nodeId)
+        if (
+          baseline &&
+          finalNode &&
+          !nodeGeometryEqual(finalNode, current.originNode)
+        ) {
+          recordTransaction(baseline)
+        }
+
         setInteractionState(IDLE_INTERACTION)
         releaseCapture(pointerId)
         return
@@ -198,7 +314,7 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
           setSelection(cloneSelection(current.previousSelection))
         } else {
           const endWorld = options.endScreen
-            ? screenToWorld(options.endScreen, viewport)
+            ? screenToWorld(options.endScreen, viewportRef.current)
             : current.currentWorld
           const crossed =
             current.hasCrossedThreshold ||
@@ -219,7 +335,7 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
         releaseCapture(pointerId)
       }
     },
-    [releaseCapture, setInteractionState, viewport],
+    [recordTransaction, releaseCapture, setInteractionState],
   )
 
   useLayoutEffect(() => {
@@ -319,10 +435,19 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       height: placed.height,
     }
 
-    setNodes((current) => addNode(current, node))
-    setSelection(selectOnly(node.id))
+    const before = createSnapshot(nodesRef.current, selectionRef.current)
+    const nextNodes = addNode(nodesRef.current, node)
+    if (nodesEqual(before.nodes, nextNodes)) {
+      return false
+    }
+    const nextSelection = selectOnly(node.id)
+    nodesRef.current = nextNodes
+    selectionRef.current = nextSelection
+    setNodes(nextNodes)
+    setSelection(nextSelection)
+    recordTransaction(before)
     return true
-  }, [])
+  }, [recordTransaction])
 
   const deleteSelection = useCallback((): boolean => {
     if (interactionRef.current.mode !== 'idle') {
@@ -333,23 +458,82 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       return false
     }
 
-    const next = deleteSelectedNodes(nodesRef.current, selected)
-    setNodes(next)
-    setSelection(reconcileSelection(selected, next))
+    const before = createSnapshot(nodesRef.current, selected)
+    const nextNodes = deleteSelectedNodes(nodesRef.current, selected)
+    if (nodesEqual(before.nodes, nextNodes)) {
+      return false
+    }
+    const nextSelection = reconcileSelection(selected, nextNodes)
+    nodesRef.current = nextNodes
+    selectionRef.current = nextSelection
+    setNodes(nextNodes)
+    setSelection(nextSelection)
+    recordTransaction(before)
     return true
-  }, [])
+  }, [recordTransaction])
+
+  const undo = useCallback((): boolean => {
+    if (interactionRef.current.mode !== 'idle') {
+      return false
+    }
+    const present = createSnapshot(nodesRef.current, selectionRef.current)
+    const result = undoTransaction(historyRef.current, present)
+    if (!result) {
+      return false
+    }
+    historyRef.current = result.history
+    setHistory(result.history)
+    applyPresent(result.present)
+    return true
+  }, [applyPresent])
+
+  const redo = useCallback((): boolean => {
+    if (interactionRef.current.mode !== 'idle') {
+      return false
+    }
+    const present = createSnapshot(nodesRef.current, selectionRef.current)
+    const result = redoTransaction(historyRef.current, present)
+    if (!result) {
+      return false
+    }
+    historyRef.current = result.history
+    setHistory(result.history)
+    applyPresent(result.present)
+    return true
+  }, [applyPresent])
 
   useImperativeHandle(
     ref,
     () => ({
       addRectangle,
       deleteSelection,
+      undo,
+      redo,
     }),
-    [addRectangle, deleteSelection],
+    [addRectangle, deleteSelection, undo, redo],
   )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (shouldHandleHistoryKey(event)) {
+        if (interactionRef.current.mode !== 'idle') {
+          return
+        }
+        const action = resolveHistoryShortcut(event)
+        if (action === 'undo') {
+          if (undo()) {
+            event.preventDefault()
+          }
+          return
+        }
+        if (action === 'redo') {
+          if (redo()) {
+            event.preventDefault()
+          }
+          return
+        }
+      }
+
       if (!shouldHandleDeleteKey(event)) {
         return
       }
@@ -367,7 +551,7 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
     return () => {
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [deleteSelection])
+  }, [deleteSelection, redo, undo])
 
   const onBackgroundPointerDown = (
     event: ReactPointerEvent<SVGSVGElement>,
@@ -433,6 +617,11 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
     const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
     const startWorld = screenToWorld(startScreen, viewport)
 
+    // Baseline is pre-selection so undo restores prior selection with origin geometry.
+    gestureBaselineRef.current = createSnapshot(
+      nodesRef.current,
+      selectionRef.current,
+    )
     setSelection(selectOnly(node.id))
     setInteractionState({
       mode: 'nodeDrag',
@@ -469,6 +658,10 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
     const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
     const startWorld = screenToWorld(startScreen, viewport)
 
+    gestureBaselineRef.current = createSnapshot(
+      nodesRef.current,
+      selectionRef.current,
+    )
     setSelection(selectOnly(node.id))
     setInteractionState({
       mode: 'nodeResize',
@@ -599,7 +792,10 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
     }
 
     if (current.mode === 'nodeDrag' || current.mode === 'nodeResize') {
-      setNodes((nodesState) => replaceNode(nodesState, current.originNode))
+      const restored = replaceNode(nodesRef.current, current.originNode)
+      nodesRef.current = restored
+      setNodes(restored)
+      gestureBaselineRef.current = null
     }
     if (current.mode === 'marquee') {
       setSelection(cloneSelection(current.previousSelection))

@@ -17,12 +17,12 @@ Never mark planned work as verified.
 | REQ-09 | Resize shapes | Employer | 3 | Manual handle drag; min size; correct under zoom | verified |
 | REQ-10 | Marquee selection (rect intersection) | Employer | 4 | Manual four-direction marquee; partial overlap selects | verified |
 | REQ-11 | Real-time marquee highlighting | Employer | 4 | Highlight updates during drag before pointerup | verified |
-| REQ-12 | Undo/redo for editing operations | Employer | 6 | Manual + unit: create/move/resize/delete; redo cleared after new edit | pending |
+| REQ-12 | Undo/redo for editing operations | Employer | 6 | Manual + unit: create/move/resize/delete; redo cleared after new edit | verified |
 | REQ-13 | Correct behavior under pan + zoom | Employer | 1–7 | Cross-cutting manual suite at varied viewport states | pending |
 | REQ-14 | Native SVG only (no graphics libs) | Employer | 0 | Dependency review of `package.json` / lockfile | verified |
 | INT-01 | Hand vs Select mode policy | Internal | 4–5 | Manual mode switching; documented in Architecture | verified |
-| INT-02 | Viewport excluded from undo history | Internal | 6 | Undo/redo leaves viewport unchanged | pending |
-| INT-03 | Snapshot history at action boundaries | Internal | 6 | Continuous drag = one undo step | pending |
+| INT-02 | Viewport excluded from undo history | Internal | 6 | Undo/redo leaves viewport unchanged | verified |
+| INT-03 | Snapshot history at action boundaries | Internal | 6 | Continuous drag = one undo step | verified |
 | INT-04 | Design token system + restrained chrome | Internal | 0 / 7 | Design review checklist; Phase 0 shell tokens present | verified |
 | INT-05 | Strict TS, ESLint, Vitest tooling | Internal | 0 | `npm run typecheck`, `lint`, `test`, `build` | verified |
 | INT-06 | Governance docs + requirements traceability | Internal | 0 | Files exist and hierarchy referenced from `AGENTS.md` | verified |
@@ -40,5 +40,7 @@ Phase 3 verification (2026-10-09): REQ-09 marked `verified` after resize geometr
 Phase 4 verification (2026-10-09): REQ-10–REQ-11 and INT-01 marked `verified` after rectangle/marquee unit tests plus browser Hand/Select and live-highlight checks. REQ-13 remains `pending` for broader hardening. REQ-06 and REQ-12 remain `pending`.
 
 Phase 5 verification (2026-10-09): REQ-06 marked `verified` after create/delete unit tests plus browser Add Rectangle / Delete Selection / keyboard checks. Deletion of selection is covered with REQ-06 verification (no separate employer REQ id). REQ-12 remains `pending` for Phase 6. REQ-13 remains `pending` for broader hardening.
+
+Phase 6 verification (2026-10-09): REQ-12, INT-02, and INT-03 marked `verified` after snapshot history unit tests plus browser Undo/Redo toolbar and shortcut checks. Viewport/tool mode remain outside history. REQ-13 remains `pending` for Phase 7 hardening.
 
 **Missing source evidence:** `Legman_AI_Infinite_Canvas_Assignment_Handoff.pdf` is not present in the repository; phases follow `docs/PRD.md` / `docs/REQUIREMENTS_MATRIX.md`.

@@ -50,3 +50,10 @@
   color: var(--muted-on-dark);
   background: transparent;
 }
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--chrome-border);
+}
