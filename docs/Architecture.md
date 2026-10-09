@@ -59,16 +59,25 @@ worldY = (screenY - viewport.y) / scale
 
 Pointer positions are measured relative to the SVG viewport’s client bounds, then converted. Do not mix raw page coordinates with world coordinates.
 
-### Zoom invariant (Phase 1+)
+Pure helpers live in `src/geometry/`:
 
-World point under the cursor stays fixed in screen space during wheel zoom. See `docs/phases.md` Phase 1. Scale is clamped to `[MIN_SCALE, MAX_SCALE]`.
+- `worldToScreen` / `screenToWorld`
+- `zoomAtCursor` (cursor-centered zoom + scale clamp)
+- `panFromOrigin` (screen-space pan from gesture origin)
+- `clientToSvgPoint` (client → SVG-local; assumes no `viewBox`, user units = CSS pixels)
+- `viewportWorldTransform` → `translate(x y) scale(s)` (SVG applies right-to-left → scale then translate)
+
+### Zoom invariant (Phase 1)
+
+World point under the cursor stays fixed in screen space during wheel zoom. Scale is clamped to `[MIN_SCALE, MAX_SCALE]` (`0.25`–`4`, internal decision). Wheel handling uses a non-passive listener with `preventDefault` on the workspace SVG only; state updates are functional so rapid wheel events see the latest viewport.
 
 ## SVG rendering
 
-- Outer SVG fills the workspace region.
-- A transformed group applies `translate(viewport.x, viewport.y) scale(viewport.scale)` for world content.
-- Overlay elements (marquee, ephemeral highlights) may sit in screen or world space deliberately — document the choice when implementing.
-- Phase 0 ships a non-interactive SVG placeholder only.
+- Outer SVG fills the workspace region (no `viewBox` in Phase 1).
+- World content uses `transform="translate(x y) scale(s)"` matching `screen = world * scale + translation`.
+- Dot grid uses an SVG pattern with the same `patternTransform` so the background pans/zooms with the world without thousands of DOM nodes.
+- A small world-origin crosshair (plus screen-space `(0,0)` label) aids manual pan/zoom verification.
+- Zoom percentage HUD derives from live `viewport.scale`.
 
 ## Interaction state machine (planned)
 

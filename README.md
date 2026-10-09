@@ -56,27 +56,38 @@ Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDra
 
 See `docs/Architecture.md` for full detail.
 
-## Current status (Phase 0)
+## Controls (Phase 1)
+
+| Input | Behavior |
+| --- | --- |
+| Drag workspace background | Pan the viewport (Hand mode) |
+| Mouse wheel / trackpad scroll over workspace | Zoom toward the cursor |
+| Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
+
+Zoom is clamped to 25%–400% (internal engineering bounds).
+
+## Current status (Phase 1)
 
 **Implemented**
 
-- Project scaffold and tooling
-- Engineering governance documents
-- Design and architecture baselines
-- Minimal editor types
-- Non-interactive application shell with SVG workspace placeholder
+- Project scaffold, governance, design/architecture baselines
+- Pure world ↔ screen conversion helpers
+- SVG world transform group
+- Background panning with pointer capture
+- Cursor-centered wheel zoom with scale clamping
+- Geometry unit tests
+- Restrained workspace grid + origin marker + zoom HUD
 
 **Not implemented yet**
 
-- Pan, zoom, coordinate conversion
 - Nodes, selection, move, resize
 - Marquee, create/delete tools
 - Undo/redo
 
 ## Planned phases
 
-0. Foundation and context lock ← **current**
-1. Viewport foundations
+0. Foundation and context lock — complete
+1. Viewport foundations ← **current**
 2. Node rendering and movement
 3. Node resizing
 4. Marquee selection
@@ -101,7 +112,7 @@ Details: `docs/phases.md`. Traceability: `docs/REQUIREMENTS_MATRIX.md`.
 - Hand mode (default) pans; Select mode marquees / selects / moves (internal policy)
 - Native SVG over Canvas API for this assignment’s scale
 - Snapshot history; viewport not undoable unless assignment text requires otherwise
-- Geist fonts self-hosted from the `geist` package (Next.js peer is unused; font files only)
+- Geist fonts self-hosted from the `geist` package via `@font-face` (see dependency note in Phase reports regarding the `next` peer)
 
 ## Authority documents
 

@@ -6,11 +6,11 @@ Never mark planned work as verified.
 
 | ID | Description | Source | Phase | Verification | Status |
 | --- | --- | --- | --- | --- | --- |
-| REQ-01 | Infinite workspace | Employer | 1 | Manual: pan beyond initial view; no hard world clamp in normal use | pending |
-| REQ-02 | Smooth viewport panning | Employer | 1 | Manual pointer drag in Hand mode; no jump artifacts | pending |
-| REQ-03 | Cursor-anchored mouse-wheel zoom | Employer | 1 | Manual + unit: world point under cursor fixed in screen space | pending |
-| REQ-04 | World → screen conversion | Employer | 1 | Unit tests for known viewport/node fixtures | pending |
-| REQ-05 | Screen → world conversion | Employer | 1 | Unit tests; round-trip with REQ-04 | pending |
+| REQ-01 | Infinite workspace | Employer | 1 | Manual: pan beyond initial view; no hard world clamp in normal use | verified |
+| REQ-02 | Smooth viewport panning | Employer | 1 | Manual pointer drag in Hand mode; no jump artifacts | verified |
+| REQ-03 | Cursor-anchored mouse-wheel zoom | Employer | 1 | Manual + unit: world point under cursor fixed in screen space | verified |
+| REQ-04 | World → screen conversion | Employer | 1 | Unit tests for known viewport/node fixtures | verified |
+| REQ-05 | Screen → world conversion | Employer | 1 | Unit tests; round-trip with REQ-04 | verified |
 | REQ-06 | Create shapes | Employer | 5 | Manual create; document node count increases; undoable later | pending |
 | REQ-07 | Select shapes | Employer | 2 | Manual click selection; selection chrome visible | pending |
 | REQ-08 | Move shapes | Employer | 2 | Manual drag at multiple zoom levels; world delta correct | pending |
@@ -27,6 +27,10 @@ Never mark planned work as verified.
 | INT-05 | Strict TS, ESLint, Vitest tooling | Internal | 0 | `npm run typecheck`, `lint`, `test`, `build` | verified |
 | INT-06 | Governance docs + requirements traceability | Internal | 0 | Files exist and hierarchy referenced from `AGENTS.md` | verified |
 
-## Phase 0 notes
+## Phase notes
 
-Phase 0 verification (2026-10-09): REQ-14 / INT-04 / INT-05 / INT-06 marked `verified` after dependency review, shell/token inspection, tooling commands, and authority-document presence. Employer feature requirements REQ-01–REQ-13 remain `pending`.
+Phase 0 verification (2026-10-09): REQ-14 / INT-04 / INT-05 / INT-06 marked `verified` after dependency review, shell/token inspection, tooling commands, and authority-document presence.
+
+Phase 1 verification (2026-10-09): REQ-01–REQ-05 marked `verified` after geometry unit tests plus browser pan/zoom checks. REQ-13 remains `pending` until later phases exercise nodes under pan/zoom. Employer feature requirements REQ-06–REQ-12 remain `pending`.
+
+**Missing source evidence:** `Legman_AI_Infinite_Canvas_Assignment_Handoff.pdf` is not present in the repository; Phase 1 follows the documented requirements in `docs/PRD.md` / `docs/REQUIREMENTS_MATRIX.md`.

@@ -6,7 +6,7 @@ Work **one approved phase at a time**. Meet acceptance criteria, verify, report,
 
 ## Phase 0 — Foundation and context lock
 
-**Status:** active (bootstrap)
+**Status:** complete
 
 ### Scope
 
@@ -59,6 +59,8 @@ Phase 0 report delivered; wait for review.
 ---
 
 ## Phase 1 — Viewport foundations
+
+**Status:** complete (pending user review)
 
 ### Scope
 
