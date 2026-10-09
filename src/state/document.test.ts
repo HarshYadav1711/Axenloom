@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { resizeRect } from '../geometry/resize'
 import {
   createInitialNodes,
   emptySelection,
   isValidNodeGeometry,
   moveNodeFromOrigin,
   replaceNode,
+  resizeNodeFromOrigin,
   selectOnly,
 } from './document'
 
@@ -107,6 +109,22 @@ describe('document nodes and selection', () => {
       y: 10,
     })
     const restored = replaceNode(dragged, origin)
+    expect(restored.find((node) => node.id === origin.id)).toEqual(origin)
+  })
+
+  it('Test L/M — resizing one node is immutable; cancel restores origin', () => {
+    const nodes = createInitialNodes()
+    const origin = { ...nodes[1] }
+    const other = { ...nodes[0] }
+    const rect = resizeRect(origin, 'se', { x: 30, y: 20 })
+    const resized = resizeNodeFromOrigin(nodes, origin.id, origin, rect)
+
+    expect(resized).not.toBe(nodes)
+    expect(nodes[1]).toEqual(origin)
+    expect(resized.find((node) => node.id === other.id)).toEqual(other)
+    expect(resized.find((node) => node.id === origin.id)).toMatchObject(rect)
+
+    const restored = replaceNode(resized, origin)
     expect(restored.find((node) => node.id === origin.id)).toEqual(origin)
   })
 })

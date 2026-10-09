@@ -99,7 +99,7 @@ Do not start Phase 2 without approval.
 
 ## Phase 2 — Node rendering and movement
 
-**Status:** complete (pending user review)
+**Status:** complete
 
 ### Scope
 
@@ -134,6 +134,8 @@ Stop after Phase 2 acceptance.
 ---
 
 ## Phase 3 — Node resizing
+
+**Status:** complete (pending user review)
 
 ### Scope
 

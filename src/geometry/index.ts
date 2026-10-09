@@ -28,3 +28,15 @@ export {
   screenDeltaToWorldDelta,
   hasExceededDragThreshold,
 } from './drag'
+
+export type { ResizeHandle, Rect, MinimumSize } from './resize'
+export {
+  MIN_NODE_WIDTH,
+  MIN_NODE_HEIGHT,
+  DEFAULT_MINIMUM_SIZE,
+  HANDLE_SIZE_SCREEN_PX,
+  resizeRect,
+  handleWorldSize,
+  cornerWorldPosition,
+  resizeCursor,
+} from './resize'

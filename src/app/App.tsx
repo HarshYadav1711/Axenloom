@@ -2,7 +2,7 @@ import CanvasWorkspace from '../canvas/CanvasWorkspace'
 import styles from './App.module.css'
 
 /**
- * Application shell. Phase 2: viewport + selectable/draggable nodes.
+ * Application shell. Phase 3: viewport, nodes, selection, drag, and resize.
  */
 export default function App() {
   return (
@@ -13,7 +13,7 @@ export default function App() {
           <h1 className={styles.name}>Axenloom</h1>
           <p className={styles.tagline}>Shape ideas without boundaries.</p>
         </div>
-        <p className={styles.status}>Phase 2 · nodes</p>
+        <p className={styles.status}>Phase 3 · resize</p>
       </header>
 
       <main className={styles.workspace} aria-label="Canvas workspace">

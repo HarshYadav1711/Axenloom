@@ -99,6 +99,15 @@ Each active state carries pointer id and origin geometry for deterministic updat
 - `pointercancel` / unexpected capture loss restores origin geometry; normal `pointerup` keeps the final position.
 - Document helpers live in `src/state/document.ts` (immutable updates) for later Phase 6 history boundaries.
 
+### Phase 3 node resize (implemented)
+
+- Four corner handles (`nw` / `ne` / `sw` / `se`) on the selected node only.
+- Pure `resizeRect` in `src/geometry/resize.ts` applies world deltas from gesture origin; minimum size 32×32 world units (internal).
+- Anchored opposite edges stay fixed when clamping to minimums.
+- Handle size uses `HANDLE_SIZE_SCREEN_PX / viewport.scale` so handles stay ~constant in CSS pixels.
+- `nodeResize` is mutually exclusive with pan and drag; wheel zoom ignored during resize.
+- Cancel restores origin geometry; completed `pointerup` keeps the resized rect.
+
 ## Editor modes (internal decision)
 
 | Mode | Background drag | Node click | Node drag |

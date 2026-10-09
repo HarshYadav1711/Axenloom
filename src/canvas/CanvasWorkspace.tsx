@@ -11,12 +11,14 @@ import {
   formatZoomPercent,
   hasExceededDragThreshold,
   panFromOrigin,
+  resizeRect,
   screenToWorld,
   viewportWorldTransform,
   wheelEventToZoomFactor,
   worldDeltaBetween,
   worldToScreen,
   zoomAtCursor,
+  type ResizeHandle,
 } from '../geometry'
 import type { Point } from '../geometry/point'
 import {
@@ -24,6 +26,7 @@ import {
   emptySelection,
   moveNodeFromOrigin,
   replaceNode,
+  resizeNodeFromOrigin,
   selectOnly,
 } from '../state/document'
 import {
@@ -38,6 +41,7 @@ import {
 } from '../types/interaction'
 import styles from './CanvasWorkspace.module.css'
 import NodeShape from './NodeShape'
+import ResizeHandles from './ResizeHandles'
 
 function readSvgPoint(
   svg: SVGSVGElement,
@@ -51,19 +55,25 @@ function readSvgPoint(
   )
 }
 
+function isNodeOrHandleTarget(target: EventTarget | null): boolean {
+  const element = target as Element | null
+  return Boolean(
+    element?.closest?.('[data-node-id], [data-resize-handle]'),
+  )
+}
+
 /**
  * Interactive SVG workspace.
- * Phase 2: pan, cursor-centered zoom, node selection, world-space dragging.
+ * Phase 3: pan, zoom, selection, drag, and four-corner world-space resize.
  *
  * Coordinate assumption: this SVG has no viewBox; user units match CSS pixels
  * of the element’s bounding client rect.
  *
- * Internal decision: wheel zoom is ignored while a node drag is active so the
- * coordinate frame does not change mid-gesture.
+ * Internal decision: wheel zoom is ignored while node drag or resize is active.
  *
- * Cancellation policy: `pointercancel` / lost capture during an active drag
- * restores the node’s gesture-origin geometry. Normal `pointerup` keeps the
- * latest position.
+ * Cancellation policy: `pointercancel` / unexpected lost capture during drag
+ * or resize restores gesture-origin geometry. Normal `pointerup` keeps the
+ * latest geometry.
  */
 export default function CanvasWorkspace() {
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -107,7 +117,10 @@ export default function CanvasWorkspace() {
     (pointerId: number, options: { cancelled: boolean }) => {
       const current = interactionRef.current
 
-      if (current.mode === 'nodeDrag' && current.pointerId === pointerId) {
+      if (
+        (current.mode === 'nodeDrag' || current.mode === 'nodeResize') &&
+        current.pointerId === pointerId
+      ) {
         if (options.cancelled) {
           setNodes((nodesState) => replaceNode(nodesState, current.originNode))
         }
@@ -135,7 +148,6 @@ export default function CanvasWorkspace() {
       return
     }
 
-    // One-shot centering only — never re-run on node/selection updates.
     didCenterOriginRef.current = true
     setViewport({
       x: width / 2,
@@ -152,8 +164,8 @@ export default function CanvasWorkspace() {
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
-      // Ignore zoom while dragging a node (internal Phase 2 policy).
-      if (interactionRef.current.mode === 'nodeDrag') {
+      const mode = interactionRef.current.mode
+      if (mode === 'nodeDrag' || mode === 'nodeResize') {
         return
       }
       const cursor = readSvgPoint(svg, event.clientX, event.clientY)
@@ -196,12 +208,8 @@ export default function CanvasWorkspace() {
     if (interaction.mode !== 'idle') {
       return
     }
-    // Node handlers stop propagation; this path is empty workspace only.
-    if (event.target !== event.currentTarget) {
-      const target = event.target as Element | null
-      if (target?.closest?.('[data-node-id]')) {
-        return
-      }
+    if (isNodeOrHandleTarget(event.target)) {
+      return
     }
 
     const svg = event.currentTarget
@@ -249,6 +257,41 @@ export default function CanvasWorkspace() {
       startWorld,
       originNode,
       hasMoved: false,
+    })
+    beginCapture(event.pointerId)
+  }
+
+  const onHandlePointerDown = (
+    event: ReactPointerEvent<SVGRectElement>,
+    node: CanvasNode,
+    handle: ResizeHandle,
+  ) => {
+    if (event.button !== 0) {
+      return
+    }
+    if (interaction.mode !== 'idle') {
+      return
+    }
+
+    event.stopPropagation()
+    event.preventDefault()
+
+    const svg = svgRef.current
+    if (!svg) {
+      return
+    }
+
+    const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
+    const startWorld = screenToWorld(startScreen, viewport)
+
+    setSelection(selectOnly(node.id))
+    setInteractionState({
+      mode: 'nodeResize',
+      pointerId: event.pointerId,
+      nodeId: node.id,
+      handle,
+      startWorld,
+      originNode: { ...node },
     })
     beginCapture(event.pointerId)
   }
@@ -304,6 +347,26 @@ export default function CanvasWorkspace() {
             : prev,
         )
       }
+      return
+    }
+
+    if (current.mode === 'nodeResize') {
+      const currentWorld = screenToWorld(currentScreen, viewport)
+      const deltaWorld = worldDeltaBetween(current.startWorld, currentWorld)
+      const nextRect = resizeRect(
+        current.originNode,
+        current.handle,
+        deltaWorld,
+      )
+
+      setNodes((nodesState) =>
+        resizeNodeFromOrigin(
+          nodesState,
+          current.nodeId,
+          current.originNode,
+          nextRect,
+        ),
+      )
     }
   }
 
@@ -327,8 +390,7 @@ export default function CanvasWorkspace() {
       return
     }
 
-    // Treat unexpected capture loss as cancellation for in-flight node drags.
-    if (current.mode === 'nodeDrag') {
+    if (current.mode === 'nodeDrag' || current.mode === 'nodeResize') {
       setNodes((nodesState) => replaceNode(nodesState, current.originNode))
     }
     setInteractionState(IDLE_INTERACTION)
@@ -336,15 +398,17 @@ export default function CanvasWorkspace() {
 
   const isPanning = interaction.mode === 'pan'
   const isDraggingNode = interaction.mode === 'nodeDrag' && interaction.hasMoved
+  const isResizing = interaction.mode === 'nodeResize'
   const draggingNodeId =
     interaction.mode === 'nodeDrag' ? interaction.nodeId : null
+  const selectedNode = nodes.find((node) => selection.has(node.id))
   const worldTransform = viewportWorldTransform(viewport)
   const originScreen = worldToScreen({ x: 0, y: 0 }, viewport)
 
   const canvasClassName = [
     styles.canvas,
     isPanning ? styles.canvasPanning : '',
-    isDraggingNode ? styles.canvasDraggingNode : '',
+    isDraggingNode || isResizing ? styles.canvasDraggingNode : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -355,7 +419,7 @@ export default function CanvasWorkspace() {
         ref={svgRef}
         className={canvasClassName}
         role="application"
-        aria-label="Infinite canvas workspace. Drag background to pan, scroll to zoom, drag nodes to move."
+        aria-label="Infinite canvas workspace. Drag background to pan, scroll to zoom, drag nodes to move, use corner handles to resize."
         tabIndex={0}
         onPointerDown={onBackgroundPointerDown}
         onPointerMove={onPointerMove}
@@ -375,7 +439,6 @@ export default function CanvasWorkspace() {
           </pattern>
         </defs>
 
-        {/* Full-bleed hit target for background pan / deselect. */}
         <rect
           width="100%"
           height="100%"
@@ -423,6 +486,14 @@ export default function CanvasWorkspace() {
               onPointerDown={onNodePointerDown}
             />
           ))}
+
+          {selectedNode ? (
+            <ResizeHandles
+              node={selectedNode}
+              viewportScale={viewport.scale}
+              onHandlePointerDown={onHandlePointerDown}
+            />
+          ) : null}
         </g>
 
         <text

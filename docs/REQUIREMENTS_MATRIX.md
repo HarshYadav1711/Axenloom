@@ -14,7 +14,7 @@ Never mark planned work as verified.
 | REQ-06 | Create shapes | Employer | 5 | Manual create; document node count increases; undoable later | pending |
 | REQ-07 | Select shapes | Employer | 2 | Manual click selection; selection chrome visible | verified |
 | REQ-08 | Move shapes | Employer | 2 | Manual drag at multiple zoom levels; world delta correct | verified |
-| REQ-09 | Resize shapes | Employer | 3 | Manual handle drag; min size; correct under zoom | pending |
+| REQ-09 | Resize shapes | Employer | 3 | Manual handle drag; min size; correct under zoom | verified |
 | REQ-10 | Marquee selection (rect intersection) | Employer | 4 | Manual four-direction marquee; partial overlap selects | pending |
 | REQ-11 | Real-time marquee highlighting | Employer | 4 | Highlight updates during drag before pointerup | pending |
 | REQ-12 | Undo/redo for editing operations | Employer | 6 | Manual + unit: create/move/resize/delete; redo cleared after new edit | pending |
@@ -33,6 +33,8 @@ Phase 0 verification (2026-10-09): REQ-14 / INT-04 / INT-05 / INT-06 marked `ver
 
 Phase 1 verification (2026-10-09): REQ-01–REQ-05 marked `verified` after geometry unit tests plus browser pan/zoom checks.
 
-Phase 2 verification (2026-10-09): REQ-07–REQ-08 marked `verified` after document/drag unit tests plus browser selection/drag checks. REQ-13 remains `pending` for broader cross-cutting hardening. REQ-06 and REQ-09–REQ-12 remain `pending`.
+Phase 2 verification (2026-10-09): REQ-07–REQ-08 marked `verified` after document/drag unit tests plus browser selection/drag checks.
+
+Phase 3 verification (2026-10-09): REQ-09 marked `verified` after resize geometry/document tests plus browser corner-handle checks. REQ-13 remains `pending` for broader hardening. REQ-06 and REQ-10–REQ-12 remain `pending`.
 
 **Missing source evidence:** `Legman_AI_Infinite_Canvas_Assignment_Handoff.pdf` is not present in the repository; phases follow `docs/PRD.md` / `docs/REQUIREMENTS_MATRIX.md`.

@@ -56,31 +56,30 @@ Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDra
 
 See `docs/Architecture.md` for full detail.
 
-## Controls (Phase 2)
+## Controls (Phase 3)
 
 | Input | Behavior |
 | --- | --- |
 | Drag workspace background | Pan the viewport (Hand mode); clears selection |
 | Click a node | Select that node (single selection) |
 | Drag a node | Move it in world space (zoom-independent) |
-| Mouse wheel / trackpad over workspace | Zoom toward the cursor (ignored during node drag) |
+| Drag a corner handle | Resize from that corner (min 32×32 world units) |
+| Mouse wheel / trackpad over workspace | Zoom toward the cursor (ignored during drag/resize) |
 | Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
 
 Zoom is clamped to 25%–400% (internal engineering bounds). Initial rectangles are fixed demonstration shapes, not persisted data.
 
-## Current status (Phase 2)
+## Current status (Phase 3)
 
 **Implemented**
 
 - Viewport pan / cursor-centered zoom / geometry tests
-- World-space sample nodes
-- Single-node selection with accent stroke
-- World-space node dragging with pointer capture
-- Document/drag unit tests
+- World-space sample nodes, selection, and dragging
+- Four-corner world-space resizing with minimum size
+- Resize/document unit tests
 
 **Not implemented yet**
 
-- Resize handles
 - Marquee, create/delete tools
 - Undo/redo
 
@@ -88,8 +87,8 @@ Zoom is clamped to 25%–400% (internal engineering bounds). Initial rectangles 
 
 0. Foundation and context lock — complete
 1. Viewport foundations — complete
-2. Node rendering and movement ← **current**
-3. Node resizing
+2. Node rendering and movement — complete
+3. Node resizing ← **current**
 4. Marquee selection
 5. Editing tools
 6. Undo/redo

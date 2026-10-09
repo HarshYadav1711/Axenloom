@@ -1,0 +1,10 @@
+.handle {
+  fill: var(--handle-fill);
+  stroke: var(--accent-ink);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.handle:hover {
+  fill: var(--accent-hover);
+}

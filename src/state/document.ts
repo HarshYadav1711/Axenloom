@@ -69,6 +69,29 @@ export function moveNodeFromOrigin(
   })
 }
 
+/**
+ * Apply resized geometry for one node from its gesture-origin snapshot.
+ * Preserves id; does not mutate `nodes` or `origin`.
+ */
+export function resizeNodeFromOrigin(
+  nodes: readonly CanvasNode[],
+  nodeId: string,
+  origin: CanvasNode,
+  nextRect: Pick<CanvasNode, 'x' | 'y' | 'width' | 'height'>,
+): CanvasNode[] {
+  if (origin.id !== nodeId) {
+    return [...nodes]
+  }
+
+  return replaceNode(nodes, {
+    ...origin,
+    x: nextRect.x,
+    y: nextRect.y,
+    width: nextRect.width,
+    height: nextRect.height,
+  })
+}
+
 export function isValidNodeGeometry(node: CanvasNode): boolean {
   return (
     Number.isFinite(node.x) &&
