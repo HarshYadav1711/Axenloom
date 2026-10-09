@@ -49,6 +49,8 @@
   fill: var(--muted-on-light);
   font-family: var(--font-mono);
   font-size: 11px;
+  opacity: 0.72;
+  pointer-events: none;
   /* Keep label readable while world content scales */
   paint-order: stroke;
 }

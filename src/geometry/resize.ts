@@ -106,6 +106,20 @@ export function handleWorldSize(viewportScale: number): number {
   return HANDLE_SIZE_SCREEN_PX / scale
 }
 
+/**
+ * Cap handle world size so opposite corners do not overlap on small nodes
+ * (especially at minimum zoom). Does not change document geometry.
+ */
+export function clampedHandleWorldSize(
+  node: Rect,
+  viewportScale: number,
+): number {
+  const ideal = handleWorldSize(viewportScale)
+  const maxByNode = Math.min(node.width, node.height) / 2
+  const capped = Math.max(1, maxByNode * 0.9)
+  return Math.min(ideal, capped)
+}
+
 export function cornerWorldPosition(
   node: Rect,
   handle: ResizeHandle,

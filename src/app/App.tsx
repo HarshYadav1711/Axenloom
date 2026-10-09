@@ -75,7 +75,7 @@ export default function App() {
           />
         </div>
 
-        <p className={styles.status}>Phase 6 · history</p>
+        <p className={styles.status}>Phase 7 · harden</p>
       </header>
 
       <main className={styles.workspace} aria-label="Canvas workspace">

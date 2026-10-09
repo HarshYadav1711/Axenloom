@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { screenDeltaToWorldDelta } from './drag'
 import {
   DEFAULT_MINIMUM_SIZE,
+  HANDLE_SIZE_SCREEN_PX,
   MIN_NODE_HEIGHT,
   MIN_NODE_WIDTH,
+  clampedHandleWorldSize,
+  handleWorldSize,
   resizeRect,
   type Rect,
 } from './resize'
@@ -158,5 +161,27 @@ describe('resizeRect', () => {
       width: MIN_NODE_WIDTH,
       height: MIN_NODE_HEIGHT,
     })
+  })
+})
+
+describe('clampedHandleWorldSize', () => {
+  it('matches ideal size when the node is large enough', () => {
+    const large = { x: 0, y: 0, width: 200, height: 160 }
+    expect(clampedHandleWorldSize(large, 1)).toBe(HANDLE_SIZE_SCREEN_PX)
+    expect(clampedHandleWorldSize(large, 1)).toBe(handleWorldSize(1))
+  })
+
+  it('caps handles on minimum nodes at 25% zoom so corners do not overlap', () => {
+    const tiny = {
+      x: 0,
+      y: 0,
+      width: MIN_NODE_WIDTH,
+      height: MIN_NODE_HEIGHT,
+    }
+    const ideal = handleWorldSize(0.25)
+    const capped = clampedHandleWorldSize(tiny, 0.25)
+    expect(ideal).toBeGreaterThan(tiny.width / 2)
+    expect(capped).toBeLessThanOrEqual((tiny.width / 2) * 0.9)
+    expect(capped).toBeLessThan(ideal)
   })
 })

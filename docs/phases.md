@@ -228,7 +228,7 @@ Phase 5 report delivered; wait for approval before Phase 6.
 
 ## Phase 6 — Undo/redo
 
-**Status:** complete (pending user commit)
+**Status:** complete
 
 ### Scope
 
@@ -272,19 +272,44 @@ Phase 6 report delivered; wait for approval before Phase 7.
 
 ## Phase 7 — Hardening and visual refinement
 
+**Status:** complete (pending user commit)
+
 ### Scope
 
-Pointer capture/cancel; zoom/drag edge cases; cursors; responsive review; a11y review; visual consistency; light performance checks
+Genuine pointer verification where possible; capture/cancel hardening; epsilon no-op consistency; resize-handle overlap at extreme zoom; responsive chrome; a11y/focus review; Geist/Next audit; verification matrix; focused regression tests.
+
+### Expected files
+
+- `src/state/gestureCommit.ts` (+ tests)
+- `clampedHandleWorldSize` in `src/geometry/resize.ts`
+- `docs/PHASE7_VERIFICATION.md`
+- Targeted CanvasWorkspace / CSS hardening
 
 ### Acceptance criteria
 
-- Documented edge cases handled
-- Focus/contrast/reduced-motion reviewed
-- No page overflow at target widths
+- Capture failure does not leave a stuck interaction
+- `lostpointercapture` after commit does not cancel the edit
+- Sub-epsilon drag/resize restores origin (no silent unrecorded mutation)
+- Handles clamped so min-size nodes at 25% zoom do not fully overlap corners
+- Responsive chrome usable at narrow widths without page overflow
+- Verification matrix records PASS/FAIL/BLOCKED/NOT RUN honestly
+- Full regression suite green; Geist cleanup proposed but not applied (RED)
+
+### Verification
+
+`npm run typecheck && npm run lint && npm run test && npm run build` plus `docs/PHASE7_VERIFICATION.md`.
+
+### Excluded
+
+New features, persistence, SVG renderer change, Geist package removal without approval.
+
+### Stopping conditions
+
+Phase 7 report delivered; wait for approval before Phase 8.
 
 ### Proposed commit message
 
-`fix: harden pointer interactions and refine editor chrome`
+`fix: harden canvas interactions history and accessibility`
 
 ---
 

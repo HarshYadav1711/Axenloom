@@ -38,13 +38,13 @@ import {
   resizeNodeFromOrigin,
   selectOnly,
 } from '../state/document'
+import { resolveCompletedNodeEdit } from '../state/gestureCommit'
 import {
   canRedo,
   canUndo,
   commitTransaction,
   createSnapshot,
   EMPTY_HISTORY,
-  nodeGeometryEqual,
   nodesEqual,
   redoTransaction,
   undoTransaction,
@@ -145,6 +145,8 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
   const viewportRef = useRef<Viewport>(DEFAULT_VIEWPORT)
   const historyRef = useRef<HistoryStacks>(EMPTY_HISTORY)
   const gestureBaselineRef = useRef<DocumentSnapshot | null>(null)
+  /** Set while endGesture runs so lostpointercapture does not cancel a commit. */
+  const closingPointerIdRef = useRef<number | null>(null)
   const creationIndexRef = useRef(0)
 
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
@@ -226,113 +228,128 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       options: { cancelled: boolean; endScreen?: Point },
     ) => {
       const current = interactionRef.current
-
+      if (current.mode === 'idle') {
+        return
+      }
       if (
-        (current.mode === 'nodeDrag' || current.mode === 'nodeResize') &&
-        current.pointerId === pointerId
+        'pointerId' in current &&
+        current.pointerId !== pointerId
       ) {
-        if (options.cancelled) {
-          const restored = replaceNode(nodesRef.current, current.originNode)
-          nodesRef.current = restored
-          setNodes(restored)
+        return
+      }
+      if (closingPointerIdRef.current === pointerId) {
+        return
+      }
+      closingPointerIdRef.current = pointerId
+
+      try {
+        if (
+          current.mode === 'nodeDrag' ||
+          current.mode === 'nodeResize'
+        ) {
+          if (options.cancelled) {
+            const restored = replaceNode(nodesRef.current, current.originNode)
+            nodesRef.current = restored
+            setNodes(restored)
+            gestureBaselineRef.current = null
+            return
+          }
+
+          const vp = viewportRef.current
+          let nextNodes = nodesRef.current
+
+          if (current.mode === 'nodeDrag') {
+            if (options.endScreen) {
+              const crossed =
+                current.hasMoved ||
+                hasExceededDragThreshold(
+                  current.startScreen,
+                  options.endScreen,
+                )
+              if (crossed) {
+                const endWorld = screenToWorld(options.endScreen, vp)
+                const deltaWorld = worldDeltaBetween(
+                  current.startWorld,
+                  endWorld,
+                )
+                nextNodes = moveNodeFromOrigin(
+                  nodesRef.current,
+                  current.nodeId,
+                  current.originNode,
+                  deltaWorld,
+                )
+              } else {
+                nextNodes = replaceNode(nodesRef.current, current.originNode)
+              }
+            }
+          } else if (options.endScreen) {
+            const endWorld = screenToWorld(options.endScreen, vp)
+            const deltaWorld = worldDeltaBetween(current.startWorld, endWorld)
+            const nextRect = resizeRect(
+              current.originNode,
+              current.handle,
+              deltaWorld,
+            )
+            nextNodes = resizeNodeFromOrigin(
+              nodesRef.current,
+              current.nodeId,
+              current.originNode,
+              nextRect,
+            )
+          }
+
+          const baseline = gestureBaselineRef.current
           gestureBaselineRef.current = null
-          setInteractionState(IDLE_INTERACTION)
-          releaseCapture(pointerId)
+          const finalNode = findNode(nextNodes, current.nodeId)
+          const resolved = resolveCompletedNodeEdit({
+            nodes: nextNodes,
+            originNode: current.originNode,
+            finalNode,
+          })
+          nextNodes = resolved.nodes
+          nodesRef.current = nextNodes
+          setNodes(nextNodes)
+
+          if (baseline && resolved.shouldCommitHistory) {
+            recordTransaction(baseline)
+          }
           return
         }
 
-        const vp = viewportRef.current
-        let nextNodes = nodesRef.current
+        if (current.mode === 'pan') {
+          return
+        }
 
-        if (current.mode === 'nodeDrag') {
-          if (options.endScreen) {
+        if (current.mode === 'marquee') {
+          if (options.cancelled) {
+            setSelection(cloneSelection(current.previousSelection))
+          } else {
+            const endWorld = options.endScreen
+              ? screenToWorld(options.endScreen, viewportRef.current)
+              : current.currentWorld
             const crossed =
-              current.hasMoved ||
-              hasExceededDragThreshold(
-                current.startScreen,
-                options.endScreen,
-              )
-            if (crossed) {
-              const endWorld = screenToWorld(options.endScreen, vp)
-              const deltaWorld = worldDeltaBetween(
-                current.startWorld,
-                endWorld,
-              )
-              nextNodes = moveNodeFromOrigin(
-                nodesRef.current,
-                current.nodeId,
-                current.originNode,
-                deltaWorld,
-              )
+              current.hasCrossedThreshold ||
+              (options.endScreen
+                ? hasExceededDragThreshold(
+                    current.startScreen,
+                    options.endScreen,
+                  )
+                : false)
+
+            if (!crossed) {
+              setSelection(emptySelection())
             } else {
-              nextNodes = replaceNode(nodesRef.current, current.originNode)
+              const marquee = normalizeRectangle(current.startWorld, endWorld)
+              setSelection(
+                selectIntersectingNodes(nodesRef.current, marquee),
+              )
             }
           }
-        } else if (options.endScreen) {
-          const endWorld = screenToWorld(options.endScreen, vp)
-          const deltaWorld = worldDeltaBetween(current.startWorld, endWorld)
-          const nextRect = resizeRect(
-            current.originNode,
-            current.handle,
-            deltaWorld,
-          )
-          nextNodes = resizeNodeFromOrigin(
-            nodesRef.current,
-            current.nodeId,
-            current.originNode,
-            nextRect,
-          )
         }
-
-        nodesRef.current = nextNodes
-        setNodes(nextNodes)
-
-        const baseline = gestureBaselineRef.current
-        gestureBaselineRef.current = null
-        const finalNode = findNode(nextNodes, current.nodeId)
-        if (
-          baseline &&
-          finalNode &&
-          !nodeGeometryEqual(finalNode, current.originNode)
-        ) {
-          recordTransaction(baseline)
-        }
-
+      } finally {
         setInteractionState(IDLE_INTERACTION)
         releaseCapture(pointerId)
-        return
-      }
-
-      if (current.mode === 'pan' && current.pointerId === pointerId) {
-        setInteractionState(IDLE_INTERACTION)
-        releaseCapture(pointerId)
-        return
-      }
-
-      if (current.mode === 'marquee' && current.pointerId === pointerId) {
-        if (options.cancelled) {
-          setSelection(cloneSelection(current.previousSelection))
-        } else {
-          const endWorld = options.endScreen
-            ? screenToWorld(options.endScreen, viewportRef.current)
-            : current.currentWorld
-          const crossed =
-            current.hasCrossedThreshold ||
-            (options.endScreen
-              ? hasExceededDragThreshold(current.startScreen, options.endScreen)
-              : false)
-
-          if (!crossed) {
-            setSelection(emptySelection())
-          } else {
-            const marquee = normalizeRectangle(current.startWorld, endWorld)
-            setSelection(
-              selectIntersectingNodes(nodesRef.current, marquee),
-            )
-          }
-        }
-        setInteractionState(IDLE_INTERACTION)
-        releaseCapture(pointerId)
+        closingPointerIdRef.current = null
       }
     },
     [recordTransaction, releaseCapture, setInteractionState],
@@ -395,18 +412,20 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
     }
   }, [])
 
-  const beginCapture = (pointerId: number) => {
+  const beginCapture = (pointerId: number): boolean => {
     const svg = svgRef.current
     if (!svg) {
-      return
+      return false
     }
     try {
       svg.setPointerCapture(pointerId)
       capturedPointerIdRef.current = pointerId
+      return true
     } catch (error) {
       // Inactive pointer IDs (e.g. synthetic events) throw NotFoundError.
-      // Do not crash the editor; leave capture unset.
+      // Do not leave a half-started gesture without capture ownership.
       console.warn('Pointer capture skipped for inactive pointer', error)
+      return false
     }
   }
 
@@ -570,6 +589,9 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
     const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
 
     if (tool === 'hand') {
+      if (!beginCapture(event.pointerId)) {
+        return
+      }
       setSelection(emptySelection())
       setInteractionState({
         mode: 'pan',
@@ -577,11 +599,13 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
         startPointer: startScreen,
         originViewport: viewport,
       })
-      beginCapture(event.pointerId)
       return
     }
 
     // Select mode: marquee candidate (do not clear selection until click/commit).
+    if (!beginCapture(event.pointerId)) {
+      return
+    }
     const startWorld = screenToWorld(startScreen, viewport)
     setInteractionState({
       mode: 'marquee',
@@ -592,7 +616,6 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       previousSelection: cloneSelection(selection),
       hasCrossedThreshold: false,
     })
-    beginCapture(event.pointerId)
   }
 
   const onNodePointerDown = (
@@ -614,6 +637,10 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       return
     }
 
+    if (!beginCapture(event.pointerId)) {
+      return
+    }
+
     const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
     const startWorld = screenToWorld(startScreen, viewport)
 
@@ -632,7 +659,6 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       originNode: { ...node },
       hasMoved: false,
     })
-    beginCapture(event.pointerId)
   }
 
   const onHandlePointerDown = (
@@ -655,6 +681,10 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       return
     }
 
+    if (!beginCapture(event.pointerId)) {
+      return
+    }
+
     const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
     const startWorld = screenToWorld(startScreen, viewport)
 
@@ -671,7 +701,6 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       startWorld,
       originNode: { ...node },
     })
-    beginCapture(event.pointerId)
   }
 
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -786,21 +815,21 @@ const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
       capturedPointerIdRef.current = null
     }
 
-    const current = interactionRef.current
-    if (current.mode === 'idle' || current.pointerId !== event.pointerId) {
+    // Normal pointer-up already closed the gesture; ignore the follow-up event.
+    if (closingPointerIdRef.current === event.pointerId) {
       return
     }
 
-    if (current.mode === 'nodeDrag' || current.mode === 'nodeResize') {
-      const restored = replaceNode(nodesRef.current, current.originNode)
-      nodesRef.current = restored
-      setNodes(restored)
-      gestureBaselineRef.current = null
+    const current = interactionRef.current
+    if (current.mode === 'idle') {
+      return
     }
-    if (current.mode === 'marquee') {
-      setSelection(cloneSelection(current.previousSelection))
+    if (!('pointerId' in current) || current.pointerId !== event.pointerId) {
+      return
     }
-    setInteractionState(IDLE_INTERACTION)
+
+    // Unexpected capture loss — cancel without a history transaction.
+    endGesture(event.pointerId, { cancelled: true })
   }
 
   const isPanning = interaction.mode === 'pan'

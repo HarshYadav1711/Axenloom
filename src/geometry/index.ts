@@ -35,6 +35,7 @@ export {
   MIN_NODE_HEIGHT,
   DEFAULT_MINIMUM_SIZE,
   HANDLE_SIZE_SCREEN_PX,
+  clampedHandleWorldSize,
   resizeRect,
   handleWorldSize,
   cornerWorldPosition,

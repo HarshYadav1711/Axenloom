@@ -79,7 +79,7 @@ History is snapshot-based at action boundaries (one undo step per completed crea
 
 Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize. New nodes use a 24px screen-space cascade (wraps every 8) so repeated Add does not stack identically. Create/delete/undo/redo never alter pan/zoom.
 
-## Current status (Phase 6)
+## Current status (Phase 7)
 
 **Implemented**
 
@@ -87,11 +87,13 @@ Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict
 - Hand / Select modes and real-time marquee
 - Viewport-aware Add Rectangle and selection Delete
 - Snapshot undo/redo with toolbar and keyboard shortcuts
+- Pointer/history hardening, clamped resize handles, narrow-layout chrome
 
 **Not implemented yet**
 
-- Hardening / visual polish (Phase 7)
 - Submission packaging (Phase 8)
+
+Verification evidence: `docs/PHASE7_VERIFICATION.md` (includes manual checklist for SVG drag/pan where automation is blocked).
 
 ## Planned phases
 
@@ -101,8 +103,8 @@ Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict
 3. Node resizing — complete
 4. Marquee selection — complete
 5. Editing tools — complete
-6. Undo/redo ← **current**
-7. Hardening and visual refinement
+6. Undo/redo — complete
+7. Hardening and visual refinement ← **current**
 8. Final acceptance and submission
 
 Details: `docs/phases.md`. Traceability: `docs/REQUIREMENTS_MATRIX.md`.

@@ -137,6 +137,14 @@ Create and delete are discrete document actions (not interaction modes). They ru
 - **Drag/resize:** baseline captured before selection change at gesture start; live updates without history writes; pointer-up applies final geometry then commits if changed; cancel restores origin without commit.
 - **Undo/Redo:** restore cloned snapshots with `reconcileSelection`; viewport and `EditorTool` unchanged. Toolbar + Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y (ignored in editable fields / mid-gesture / key-repeat).
 
+### Phase 7 hardening (implemented)
+
+- **Capture:** `beginCapture` returns success/failure; gestures start only after successful capture.
+- **Cleanup:** `closingPointerIdRef` prevents `lostpointercapture` from cancelling a completed commit; unexpected loss cancels via `endGesture({ cancelled: true })`.
+- **Epsilon:** `resolveCompletedNodeEdit` restores origin geometry when the final delta is within `GEOMETRY_EPSILON`, so no-ops cannot leave unrecorded micro-edits.
+- **Handles:** `clampedHandleWorldSize` caps corner handle size to ~45% of the smaller node edge so min-size nodes at 25% zoom do not fully overlap.
+- **Verification:** `docs/PHASE7_VERIFICATION.md` records PASS/FAIL/BLOCKED/NOT RUN.
+
 ## Editor modes (internal decision)
 
 | Mode | Background drag | Node click | Node drag |

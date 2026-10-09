@@ -43,4 +43,6 @@ Phase 5 verification (2026-10-09): REQ-06 marked `verified` after create/delete 
 
 Phase 6 verification (2026-10-09): REQ-12, INT-02, and INT-03 marked `verified` after snapshot history unit tests plus browser Undo/Redo toolbar and shortcut checks. Viewport/tool mode remain outside history. REQ-13 remains `pending` for Phase 7 hardening.
 
+Phase 7 verification (2026-10-09): Hardening shipped (capture abort, lost-capture race guard, epsilon no-op restore, clamped handles, narrow chrome). REQ-13 remains `pending` until the manual cross-zoom pointer checklist in `docs/PHASE7_VERIFICATION.md` is completed by a human (SVG continuous drag/pan/marquee **BLOCKED** in current automation).
+
 **Missing source evidence:** `Legman_AI_Infinite_Canvas_Assignment_Handoff.pdf` is not present in the repository; phases follow `docs/PRD.md` / `docs/REQUIREMENTS_MATRIX.md`.

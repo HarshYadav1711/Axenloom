@@ -1,7 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import {
+  clampedHandleWorldSize,
   cornerWorldPosition,
-  handleWorldSize,
   resizeCursor,
   type ResizeHandle,
 } from '../geometry/resize'
@@ -29,7 +29,7 @@ export default function ResizeHandles({
   viewportScale,
   onHandlePointerDown,
 }: ResizeHandlesProps) {
-  const size = handleWorldSize(viewportScale)
+  const size = clampedHandleWorldSize(node, viewportScale)
   const half = size / 2
 
   return (
