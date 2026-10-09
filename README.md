@@ -56,39 +56,39 @@ Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDra
 
 See `docs/Architecture.md` for full detail.
 
-## Controls (Phase 1)
+## Controls (Phase 2)
 
 | Input | Behavior |
 | --- | --- |
-| Drag workspace background | Pan the viewport (Hand mode) |
-| Mouse wheel / trackpad scroll over workspace | Zoom toward the cursor |
+| Drag workspace background | Pan the viewport (Hand mode); clears selection |
+| Click a node | Select that node (single selection) |
+| Drag a node | Move it in world space (zoom-independent) |
+| Mouse wheel / trackpad over workspace | Zoom toward the cursor (ignored during node drag) |
 | Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
 
-Zoom is clamped to 25%–400% (internal engineering bounds).
+Zoom is clamped to 25%–400% (internal engineering bounds). Initial rectangles are fixed demonstration shapes, not persisted data.
 
-## Current status (Phase 1)
+## Current status (Phase 2)
 
 **Implemented**
 
-- Project scaffold, governance, design/architecture baselines
-- Pure world ↔ screen conversion helpers
-- SVG world transform group
-- Background panning with pointer capture
-- Cursor-centered wheel zoom with scale clamping
-- Geometry unit tests
-- Restrained workspace grid + origin marker + zoom HUD
+- Viewport pan / cursor-centered zoom / geometry tests
+- World-space sample nodes
+- Single-node selection with accent stroke
+- World-space node dragging with pointer capture
+- Document/drag unit tests
 
 **Not implemented yet**
 
-- Nodes, selection, move, resize
+- Resize handles
 - Marquee, create/delete tools
 - Undo/redo
 
 ## Planned phases
 
 0. Foundation and context lock — complete
-1. Viewport foundations ← **current**
-2. Node rendering and movement
+1. Viewport foundations — complete
+2. Node rendering and movement ← **current**
 3. Node resizing
 4. Marquee selection
 5. Editing tools

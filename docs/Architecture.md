@@ -79,24 +79,32 @@ World point under the cursor stays fixed in screen space during wheel zoom. Scal
 - A small world-origin crosshair (plus screen-space `(0,0)` label) aids manual pan/zoom verification.
 - Zoom percentage HUD derives from live `viewport.scale`.
 
-## Interaction state machine (planned)
+## Interaction state machine
 
-Use a discriminated union, not a pile of booleans:
+Discriminated union in `src/types/interaction.ts`:
 
 - `idle`
-- `pan`
-- `nodeDrag`
-- `resize`
-- `marquee`
+- `pan` (Phase 1)
+- `nodeDrag` (Phase 2)
+- `resize` / `marquee` — reserved, not implemented
 
-Each active state carries the initial pointer position and original geometry needed for deterministic updates on `pointermove` / `pointerup`.
+Each active state carries pointer id and origin geometry for deterministic updates.
+
+### Phase 2 node drag (implemented)
+
+- Pointer-down on a node selects it (`Set` with one id) and starts `nodeDrag`; `stopPropagation` prevents background pan.
+- Movement uses world deltas from the pointer-down world point applied to the node’s origin geometry (not incremental mutation).
+- Click-versus-drag threshold: `NODE_DRAG_THRESHOLD_PX` (3 screen px).
+- Wheel zoom is ignored while `nodeDrag` is active (internal decision).
+- `pointercancel` / unexpected capture loss restores origin geometry; normal `pointerup` keeps the final position.
+- Document helpers live in `src/state/document.ts` (immutable updates) for later Phase 6 history boundaries.
 
 ## Editor modes (internal decision)
 
 | Mode | Background drag | Node click | Node drag |
 | --- | --- | --- | --- |
-| Hand (default) | Pan viewport | — | — |
-| Select | Start marquee | Select | Move |
+| Hand (default, Phase 2) | Pan viewport; clears selection | Select | Move |
+| Select | Start marquee (Phase 4) | Select | Move |
 
 Space-temporary Hand mode is a later enhancement with keyboard-focus safeguards.
 

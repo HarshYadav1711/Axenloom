@@ -28,7 +28,8 @@
   --workspace-bg: var(--paper);
   --workspace-grid: rgba(28, 28, 40, 0.08);
   --node-fill: var(--paper-raised);
-  --node-stroke: var(--border-light);
+  /* Slightly stronger than border-light so unselected nodes read on paper. */
+  --node-stroke: var(--border-dark-strong);
   --node-selected-stroke: var(--accent);
   --marquee-fill: var(--accent-soft);
   --marquee-stroke: var(--accent);

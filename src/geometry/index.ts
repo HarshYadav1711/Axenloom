@@ -20,3 +20,11 @@ export {
 
 export type { SvgClientRect } from './pointer'
 export { clientToSvgPoint } from './pointer'
+
+export {
+  NODE_DRAG_THRESHOLD_PX,
+  pointDistance,
+  worldDeltaBetween,
+  screenDeltaToWorldDelta,
+  hasExceededDragThreshold,
+} from './drag'

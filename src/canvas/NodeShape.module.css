@@ -1,0 +1,20 @@
+.node {
+  fill: var(--node-fill);
+  stroke: var(--node-stroke);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+}
+
+.node:hover {
+  stroke: var(--border-dark-strong);
+}
+
+.nodeSelected {
+  stroke: var(--node-selected-stroke);
+  stroke-width: 2;
+}
+
+.nodeDragging {
+  cursor: grabbing;
+}

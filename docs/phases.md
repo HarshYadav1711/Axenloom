@@ -60,7 +60,7 @@ Phase 0 report delivered; wait for review.
 
 ## Phase 1 — Viewport foundations
 
-**Status:** complete (pending user review)
+**Status:** complete
 
 ### Scope
 
@@ -98,6 +98,8 @@ Do not start Phase 2 without approval.
 ---
 
 ## Phase 2 — Node rendering and movement
+
+**Status:** complete (pending user review)
 
 ### Scope
 
