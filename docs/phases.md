@@ -272,7 +272,7 @@ Phase 6 report delivered; wait for approval before Phase 7.
 
 ## Phase 7 — Hardening and visual refinement
 
-**Status:** complete (pending user commit)
+**Status:** complete
 
 ### Scope
 
@@ -315,16 +315,39 @@ Phase 7 report delivered; wait for approval before Phase 8.
 
 ## Phase 8 — Final acceptance and submission
 
+**Status:** complete (pending user commit) — **RELEASE CANDIDATE**
+
 ### Scope
 
-Full test/build; manual verification; README polish; architecture explanation; dependency review; submission prep; final git status review (user commits)
+Geist/Next dependency cleanup (approved); README + acceptance docs; requirements matrix honesty; clean-install verification; release-candidate ZIP; Gate A engineering pass. Gate B real-pointer sign-off remains with the user.
+
+### Expected files
+
+- `src/assets/fonts/*` (+ OFL license)
+- `docs/FINAL_ACCEPTANCE.md`
+- Updated README / REQUIREMENTS_MATRIX / phases
+- `Axenloom_LegmanAI_ReleaseCandidate.zip` (optional artifact outside repo or adjacent)
 
 ### Acceptance criteria
 
-- Requirements matrix statuses accurate
-- Submission artifacts complete
-- No banned deps; scripts green
+- No `geist` / `next` in dependency graph; fonts self-hosted
+- `typecheck` / `lint` / `test` / `build` / clean `npm ci` green
+- Matrix distinguishes verified vs partial vs pending (REQ-13 pending Gate B)
+- README accurate for a fresh reviewer
+- Release status: RELEASE CANDIDATE until Gate B checklist signed
+
+### Verification
+
+Gates in `docs/FINAL_ACCEPTANCE.md`. Manual pointer scenarios A–H required for READY FOR SUBMISSION.
+
+### Excluded
+
+New features, deploy, submit, git commit/push by agents.
+
+### Stopping conditions
+
+Phase 8 report delivered; wait for user Gate B sign-off and final approval.
 
 ### Proposed commit message
 
-`docs: finalize Axenloom submission materials`
+`chore: finalize Axenloom verification and submission readiness`

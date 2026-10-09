@@ -2,131 +2,117 @@
 
 **Shape ideas without boundaries.**
 
-Axenloom is an infinite canvas editor built for the **Legman AI** take-home engineering assignment. It demonstrates coordinate-correct viewport math, explicit interaction architecture, and a restrained technical visual system — without becoming an overengineered Figma clone.
+Axenloom is an infinite canvas editor built for the **Legman AI** take-home engineering assignment. It demonstrates coordinate-correct viewport math, explicit interaction ownership, transactional undo/redo, and a restrained technical visual system — using **native SVG** only (no React Flow, Fabric, Konva, Pixi, or Canvas API for the workspace).
 
 ## Stack
 
-- React 19 + TypeScript (strict)
-- Vite
-- Native SVG (no external canvas/graphics libraries)
-- CSS design tokens
-- Vitest + ESLint
-- npm (single lockfile)
-- Node.js 24 LTS preferred
+| Layer | Choice |
+| --- | --- |
+| UI | React 19 + TypeScript (strict) |
+| Bundler | Vite 8 |
+| Graphics | Native SVG |
+| Styles | CSS modules + design tokens |
+| Fonts | Self-hosted Geist Sans / Mono (SIL OFL 1.1) |
+| Tests | Vitest |
+| Lint | ESLint |
+| Package manager | npm (single lockfile) |
 
-## Requirements
+## Prerequisites
 
-- Node.js 24+ recommended
-- npm 10+
+- **Node.js 24+** recommended (verified on Node 24)
+- **npm 10+**
 
-## Install
-
-```bash
-npm install
-```
-
-## Local development
+## Fresh install
 
 ```bash
+npm ci
 npm run dev
 ```
 
-## Scripts
+Vite prints the local URL (commonly `http://localhost:5173/`; another port is used if that one is busy).
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run typecheck` | TypeScript project references check |
-| `npm run lint` | ESLint |
-| `npm run test` | Vitest (run once) |
-| `npm run test:watch` | Vitest watch mode |
-| `npm run preview` | Preview production build |
+For a first-time clone without a prior lockfile sync, `npm install` also works; prefer `npm ci` for reproducible installs.
 
-## Architecture overview
+## Verification
 
-Nodes live in **world space**. The viewport stores screen-space translation (`x`, `y`) and `scale`.
-
-```text
-screen = world * scale + viewportTranslation
-world  = (screen - viewportTranslation) / scale
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
 ```
 
-Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDrag`, `resize`, `marquee`). Document state, viewport, selection, interaction, and history remain separate. Undo/redo uses snapshots at action boundaries; the viewport is excluded from history (internal assumption).
+Optional production preview:
 
-See `docs/Architecture.md` for full detail.
+```bash
+npm run preview
+```
 
-## Controls (Phase 6)
+## Editor controls
 
 | Input | Behavior |
 | --- | --- |
-| Hand / Select buttons | Switch editor mode (`aria-pressed`; disabled mid-gesture) |
-| Add | Create a 160×100 world-unit rectangle near the visible SVG center |
-| Delete | Remove all selected nodes (disabled when selection empty or mid-gesture) |
-| Undo / Redo | Document history (disabled when unavailable or mid-gesture) |
-| Ctrl/Cmd+Z | Undo |
-| Ctrl/Cmd+Shift+Z or Ctrl+Y | Redo |
-| Delete / Backspace keys | Same as Delete when editor is idle and focus is not in a text field |
+| Hand / Select | Switch editor mode (`aria-pressed`; disabled mid-gesture) |
 | Drag empty background (Hand) | Pan viewport; clears selection |
 | Drag empty background (Select) | World-space marquee with live intersection highlight |
-| Click empty background (Select) | Clear selection (no meaningful drag) |
+| Click empty background (Select) | Clear selection |
 | Click / drag a node | Select and move (both modes) |
 | Drag a corner handle | Resize when exactly one node is selected |
 | Mouse wheel over workspace | Cursor-centered zoom (ignored during drag/resize/marquee) |
-| Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
+| Add | Create a 160×100 world-unit rectangle near the visible SVG center |
+| Delete | Remove all selected nodes |
+| Undo / Redo | Document history |
+| Ctrl/Cmd+Z | Undo |
+| Ctrl/Cmd+Shift+Z or Ctrl+Y | Redo |
+| Delete / Backspace | Delete selection (idle, not in a text field) |
 
-History is snapshot-based at action boundaries (one undo step per completed create, delete, drag, or resize). Viewport pan/zoom and tool mode are not in history. Selection-only, cancelled, and no-op gestures do not create history entries. A new edit after undo clears redo. History capacity is 100 edits.
+Zoom is clamped to **25%–400%**. Marquee uses strict positive-area overlap. History capacity is **100** edits. Viewport pan/zoom and tool mode are **not** in undo history.
 
-Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize. New nodes use a 24px screen-space cascade (wraps every 8) so repeated Add does not stack identically. Create/delete/undo/redo never alter pan/zoom.
+## Architecture (brief)
 
-## Current status (Phase 7)
+- **Why SVG:** Assignment-scale document with inspectable DOM nodes; no graphics library required.
+- **World model:** Nodes store `x`, `y`, `width`, `height` in world units. Viewport holds screen translation + scale: `screen = world * scale + translation`.
+- **Cursor-centered zoom:** Adjusts translation so the world point under the cursor stays fixed in screen space.
+- **Interaction state machine:** Exclusive modes — `idle`, `pan`, `nodeDrag`, `nodeResize`, `marquee`.
+- **Marquee:** Normalize rectangle → positive-area intersection → live preview IDs → commit on release.
+- **History:** Immutable document snapshots at action boundaries (one create / delete / completed drag / completed resize = one undo step).
 
-**Implemented**
+See `docs/Architecture.md` for detail. Traceability: `docs/REQUIREMENTS_MATRIX.md`.
 
-- Viewport, nodes, selection, drag, and four-corner resize
-- Hand / Select modes and real-time marquee
-- Viewport-aware Add Rectangle and selection Delete
-- Snapshot undo/redo with toolbar and keyboard shortcuts
-- Pointer/history hardening, clamped resize handles, narrow-layout chrome
+## Assumptions and tradeoffs
 
-**Not implemented yet**
+- Pan and zoom are excluded from undo/redo (internal assumption).
+- No persistence, backend, collaboration, or auth.
+- Snapshot history suited to a small node document (not command/event sourcing).
+- No group transforms, rotation, snapping, connectors, or text editing.
+- Toolbar and shortcuts are keyboard-accessible; **full keyboard manipulation of SVG shapes is not implemented** (pointer-centric editor).
+- Continuous SVG pan/drag/resize/marquee acceptance requires **human pointer verification** — see `docs/FINAL_ACCEPTANCE.md`. Cursor IDE automation cannot HTML5-drag SVG.
 
-- Submission packaging (Phase 8)
+## Design
 
-Verification evidence: `docs/PHASE7_VERIFICATION.md` (includes manual checklist for SVG drag/pan where automation is blocked).
+**Spatial clarity with technical precision** — charcoal chrome, paper workspace, selective cyan accent, Geist typography. Details: `docs/Design.md`.
 
-## Planned phases
+## Fonts & license
 
-0. Foundation and context lock — complete
-1. Viewport foundations — complete
-2. Node rendering and movement — complete
-3. Node resizing — complete
-4. Marquee selection — complete
-5. Editing tools — complete
-6. Undo/redo — complete
-7. Hardening and visual refinement ← **current**
-8. Final acceptance and submission
+Geist Sans and Geist Mono variable fonts are vendored under `src/assets/fonts/` with the SIL Open Font License text in `src/assets/fonts/LICENSE.txt`. Copyright © 2023 Vercel, in collaboration with basement.studio.
 
-Details: `docs/phases.md`. Traceability: `docs/REQUIREMENTS_MATRIX.md`.
+## Project docs
 
-## Design and engineering principles
+| Document | Role |
+| --- | --- |
+| `AGENTS.md` | Agent workflow and hard constraints |
+| `docs/PRD.md` | Product requirements |
+| `docs/Architecture.md` | Technical architecture |
+| `docs/Design.md` | Design system |
+| `docs/phases.md` | Phase plan and status |
+| `docs/REQUIREMENTS_MATRIX.md` | Requirement traceability |
+| `docs/PHASE7_VERIFICATION.md` | Phase 7 evidence matrix |
+| `docs/FINAL_ACCEPTANCE.md` | Final gates and manual checklist |
 
-- **Spatial clarity with technical precision**
-- Context lock before implementation
-- GREEN / YELLOW / RED change classification
-- No arbitrary dependencies or fake functionality
-- Employer requirements outrank internal taste
-- Agents follow `AGENTS.md` and must not auto-commit/push
-
-## Key technical assumptions
-
-- Hand mode (default) pans; Select mode marquees / selects / moves (internal policy)
-- Native SVG over Canvas API for this assignment’s scale
-- Snapshot history; viewport not undoable unless assignment text requires otherwise
-- Geist fonts self-hosted from the `geist` package via `@font-face` (see dependency note in Phase reports regarding the `next` peer)
-
-## Authority documents
+## Authority
 
 1. Employer assignment / handoff (when available)
 2. User-approved phase decisions
-3. `docs/rules.md` → `PRD.md` → `Architecture.md` → `Design.md` → `phases.md` → `REQUIREMENTS_MATRIX.md`
+3. `docs/rules.md` → PRD → Architecture → Design → phases → REQUIREMENTS_MATRIX
+
+**Note:** The original Legman AI handoff PDF was not present in this repository during development; requirements follow `docs/PRD.md` and the matrix.

@@ -75,7 +75,7 @@ Cyan is selective: active tool, selection, handles, focus — not dominant chrom
 
 ## Typography
 
-- **Geist Sans** — application UI text (self-hosted from the `geist` package via `@font-face`; no third-party font CDN).
+- **Geist Sans** — application UI text (self-hosted variable WOFF2 under `src/assets/fonts/` via `@font-face`; SIL OFL 1.1; no CDN).
 - **Geist Mono** — coordinates, zoom %, measurements, technical metadata.
 - Fallbacks: `ui-sans-serif, system-ui, sans-serif` / `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`.
 - Do not set long prose in monospace.

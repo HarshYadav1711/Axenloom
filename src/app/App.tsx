@@ -12,7 +12,7 @@ import {
 import styles from './App.module.css'
 
 /**
- * Application shell. Phase 6: undo/redo controls + create/delete + modes.
+ * Application shell: tool modes, editing actions, and canvas workspace.
  */
 export default function App() {
   const editorRef = useRef<CanvasEditorHandle>(null)
@@ -75,7 +75,7 @@ export default function App() {
           />
         </div>
 
-        <p className={styles.status}>Phase 7 · harden</p>
+        <p className={styles.status}>Infinite canvas</p>
       </header>
 
       <main className={styles.workspace} aria-label="Canvas workspace">
