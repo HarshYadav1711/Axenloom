@@ -108,6 +108,15 @@ Each active state carries pointer id and origin geometry for deterministic updat
 - `nodeResize` is mutually exclusive with pan and drag; wheel zoom ignored during resize.
 - Cancel restores origin geometry; completed `pointerup` keeps the resized rect.
 
+### Phase 4 marquee & modes (implemented)
+
+- `EditorTool`: Hand (default) pans empty background; Select marquees empty background.
+- World-space marquee via `normalizeRectangle` + strict positive-area `rectanglesIntersect` (`src/geometry/rectangles.ts`). Edge-only contact does not select.
+- Live preview IDs are derived from current marquee bounds during drag; committed `selection` updates only on successful release.
+- Cancel restores `previousSelection`. Background click under the screen-pixel threshold clears selection.
+- Resize handles show only when exactly one node is selected (no multi-node resize).
+- Mode buttons disable while a gesture is active.
+
 ## Editor modes (internal decision)
 
 | Mode | Background drag | Node click | Node drag |

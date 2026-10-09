@@ -5,6 +5,8 @@ import styles from './NodeShape.module.css'
 type NodeShapeProps = {
   node: CanvasNode
   selected: boolean
+  /** Live marquee intersection highlight (distinct from committed selection). */
+  preview: boolean
   dragging: boolean
   onPointerDown: (
     event: ReactPointerEvent<SVGRectElement>,
@@ -19,12 +21,13 @@ type NodeShapeProps = {
 export default function NodeShape({
   node,
   selected,
+  preview,
   dragging,
   onPointerDown,
 }: NodeShapeProps) {
   const className = [
     styles.node,
-    selected ? styles.nodeSelected : '',
+    preview ? styles.nodePreview : selected ? styles.nodeSelected : '',
     dragging ? styles.nodeDragging : '',
   ]
     .filter(Boolean)

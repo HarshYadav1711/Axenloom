@@ -135,7 +135,7 @@ Stop after Phase 2 acceptance.
 
 ## Phase 3 — Node resizing
 
-**Status:** complete (pending user review)
+**Status:** complete
 
 ### Scope
 
@@ -158,6 +158,8 @@ Marquee, create tools, history
 ---
 
 ## Phase 4 — Marquee selection
+
+**Status:** complete (pending user review)
 
 ### Scope
 

@@ -40,3 +40,12 @@ export {
   cornerWorldPosition,
   resizeCursor,
 } from './resize'
+
+export {
+  normalizeRectangle,
+  rectanglesIntersect,
+  nodeAsRect,
+  selectIntersectingNodes,
+  cloneSelection,
+} from './rectangles'
+

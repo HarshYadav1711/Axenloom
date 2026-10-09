@@ -1,10 +1,10 @@
 import type { Point } from '../geometry/point'
 import type { ResizeHandle } from '../geometry/resize'
-import type { CanvasNode, Viewport } from './editor'
+import type { CanvasNode, Selection, Viewport } from './editor'
 
 /**
  * Explicit interaction state machine.
- * Phase 3: idle, pan, nodeDrag, nodeResize. Marquee remains unimplemented.
+ * Phase 4: idle, pan, nodeDrag, nodeResize, marquee.
  */
 export type InteractionState =
   | { mode: 'idle' }
@@ -18,13 +18,9 @@ export type InteractionState =
       mode: 'nodeDrag'
       pointerId: number
       nodeId: string
-      /** SVG-local screen position at pointer-down. */
       startScreen: Point
-      /** World position under the pointer at pointer-down. */
       startWorld: Point
-      /** Node geometry at gesture start — used for updates and cancel restore. */
       originNode: CanvasNode
-      /** True once movement crossed the click-versus-drag threshold. */
       hasMoved: boolean
     }
   | {
@@ -34,6 +30,16 @@ export type InteractionState =
       handle: ResizeHandle
       startWorld: Point
       originNode: CanvasNode
+    }
+  | {
+      mode: 'marquee'
+      pointerId: number
+      startScreen: Point
+      startWorld: Point
+      currentWorld: Point
+      /** Committed selection before the marquee began (restored on cancel). */
+      previousSelection: Selection
+      hasCrossedThreshold: boolean
     }
 
 export const IDLE_INTERACTION: InteractionState = { mode: 'idle' }

@@ -8,11 +8,14 @@ import {
 } from 'react'
 import {
   clientToSvgPoint,
+  cloneSelection,
   formatZoomPercent,
   hasExceededDragThreshold,
+  normalizeRectangle,
   panFromOrigin,
   resizeRect,
   screenToWorld,
+  selectIntersectingNodes,
   viewportWorldTransform,
   wheelEventToZoomFactor,
   worldDeltaBetween,
@@ -30,8 +33,10 @@ import {
   selectOnly,
 } from '../state/document'
 import {
+  DEFAULT_TOOL,
   DEFAULT_VIEWPORT,
   type CanvasNode,
+  type EditorTool,
   type Selection,
   type Viewport,
 } from '../types/editor'
@@ -40,6 +45,7 @@ import {
   type InteractionState,
 } from '../types/interaction'
 import styles from './CanvasWorkspace.module.css'
+import Marquee from './Marquee'
 import NodeShape from './NodeShape'
 import ResizeHandles from './ResizeHandles'
 
@@ -62,30 +68,42 @@ function isNodeOrHandleTarget(target: EventTarget | null): boolean {
   )
 }
 
+type CanvasWorkspaceProps = {
+  tool?: EditorTool
+  onInteractionActiveChange?: (active: boolean) => void
+}
+
 /**
  * Interactive SVG workspace.
- * Phase 3: pan, zoom, selection, drag, and four-corner world-space resize.
+ * Phase 4: Hand/Select modes, marquee selection with live intersection preview.
  *
- * Coordinate assumption: this SVG has no viewBox; user units match CSS pixels
- * of the element’s bounding client rect.
+ * Coordinate assumption: SVG has no viewBox; user units = CSS pixels.
  *
- * Internal decision: wheel zoom is ignored while node drag or resize is active.
+ * Wheel zoom is ignored during node drag, resize, and marquee.
+ * Resize handles appear only when exactly one node is selected (internal).
  *
- * Cancellation policy: `pointercancel` / unexpected lost capture during drag
- * or resize restores gesture-origin geometry. Normal `pointerup` keeps the
- * latest geometry.
+ * Marquee cancel restores `previousSelection`. Successful release commits
+ * intersecting IDs (or clears on a background click under threshold).
  */
-export default function CanvasWorkspace() {
+export default function CanvasWorkspace({
+  tool = DEFAULT_TOOL,
+  onInteractionActiveChange,
+}: CanvasWorkspaceProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const capturedPointerIdRef = useRef<number | null>(null)
   const interactionRef = useRef<InteractionState>(IDLE_INTERACTION)
   const didCenterOriginRef = useRef(false)
+  const nodesRef = useRef<CanvasNode[]>([])
 
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [nodes, setNodes] = useState<CanvasNode[]>(() => createInitialNodes())
   const [selection, setSelection] = useState<Selection>(() => emptySelection())
   const [interaction, setInteraction] =
     useState<InteractionState>(IDLE_INTERACTION)
+
+  useEffect(() => {
+    nodesRef.current = nodes
+  }, [nodes])
 
   const setInteractionState = useCallback((next: InteractionState) => {
     interactionRef.current = next
@@ -103,6 +121,10 @@ export default function CanvasWorkspace() {
     [],
   )
 
+  useEffect(() => {
+    onInteractionActiveChange?.(interaction.mode !== 'idle')
+  }, [interaction.mode, onInteractionActiveChange])
+
   const releaseCapture = useCallback((pointerId: number) => {
     const svg = svgRef.current
     if (svg?.hasPointerCapture(pointerId)) {
@@ -114,7 +136,10 @@ export default function CanvasWorkspace() {
   }, [])
 
   const endGesture = useCallback(
-    (pointerId: number, options: { cancelled: boolean }) => {
+    (
+      pointerId: number,
+      options: { cancelled: boolean; endScreen?: Point },
+    ) => {
       const current = interactionRef.current
 
       if (
@@ -132,9 +157,36 @@ export default function CanvasWorkspace() {
       if (current.mode === 'pan' && current.pointerId === pointerId) {
         setInteractionState(IDLE_INTERACTION)
         releaseCapture(pointerId)
+        return
+      }
+
+      if (current.mode === 'marquee' && current.pointerId === pointerId) {
+        if (options.cancelled) {
+          setSelection(cloneSelection(current.previousSelection))
+        } else {
+          const endWorld = options.endScreen
+            ? screenToWorld(options.endScreen, viewport)
+            : current.currentWorld
+          const crossed =
+            current.hasCrossedThreshold ||
+            (options.endScreen
+              ? hasExceededDragThreshold(current.startScreen, options.endScreen)
+              : false)
+
+          if (!crossed) {
+            setSelection(emptySelection())
+          } else {
+            const marquee = normalizeRectangle(current.startWorld, endWorld)
+            setSelection(
+              selectIntersectingNodes(nodesRef.current, marquee),
+            )
+          }
+        }
+        setInteractionState(IDLE_INTERACTION)
+        releaseCapture(pointerId)
       }
     },
-    [releaseCapture, setInteractionState],
+    [releaseCapture, setInteractionState, viewport],
   )
 
   useLayoutEffect(() => {
@@ -165,7 +217,11 @@ export default function CanvasWorkspace() {
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
       const mode = interactionRef.current.mode
-      if (mode === 'nodeDrag' || mode === 'nodeResize') {
+      if (
+        mode === 'nodeDrag' ||
+        mode === 'nodeResize' ||
+        mode === 'marquee'
+      ) {
         return
       }
       const cursor = readSvgPoint(svg, event.clientX, event.clientY)
@@ -213,14 +269,30 @@ export default function CanvasWorkspace() {
     }
 
     const svg = event.currentTarget
-    const startPointer = readSvgPoint(svg, event.clientX, event.clientY)
+    const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
 
-    setSelection(emptySelection())
+    if (tool === 'hand') {
+      setSelection(emptySelection())
+      setInteractionState({
+        mode: 'pan',
+        pointerId: event.pointerId,
+        startPointer: startScreen,
+        originViewport: viewport,
+      })
+      beginCapture(event.pointerId)
+      return
+    }
+
+    // Select mode: marquee candidate (do not clear selection until click/commit).
+    const startWorld = screenToWorld(startScreen, viewport)
     setInteractionState({
-      mode: 'pan',
+      mode: 'marquee',
       pointerId: event.pointerId,
-      startPointer,
-      originViewport: viewport,
+      startScreen,
+      startWorld,
+      currentWorld: startWorld,
+      previousSelection: cloneSelection(selection),
+      hasCrossedThreshold: false,
     })
     beginCapture(event.pointerId)
   }
@@ -246,7 +318,6 @@ export default function CanvasWorkspace() {
 
     const startScreen = readSvgPoint(svg, event.clientX, event.clientY)
     const startWorld = screenToWorld(startScreen, viewport)
-    const originNode = { ...node }
 
     setSelection(selectOnly(node.id))
     setInteractionState({
@@ -255,7 +326,7 @@ export default function CanvasWorkspace() {
       nodeId: node.id,
       startScreen,
       startWorld,
-      originNode,
+      originNode: { ...node },
       hasMoved: false,
     })
     beginCapture(event.pointerId)
@@ -367,11 +438,34 @@ export default function CanvasWorkspace() {
           nextRect,
         ),
       )
+      return
+    }
+
+    if (current.mode === 'marquee') {
+      const currentWorld = screenToWorld(currentScreen, viewport)
+      const crossed =
+        current.hasCrossedThreshold ||
+        hasExceededDragThreshold(current.startScreen, currentScreen)
+
+      updateInteraction((prev) =>
+        prev.mode === 'marquee' && prev.pointerId === current.pointerId
+          ? {
+              ...prev,
+              currentWorld,
+              hasCrossedThreshold: crossed,
+            }
+          : prev,
+      )
     }
   }
 
   const onPointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
-    endGesture(event.pointerId, { cancelled: false })
+    const endScreen = readSvgPoint(
+      event.currentTarget,
+      event.clientX,
+      event.clientY,
+    )
+    endGesture(event.pointerId, { cancelled: false, endScreen })
   }
 
   const onPointerCancel = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -393,22 +487,44 @@ export default function CanvasWorkspace() {
     if (current.mode === 'nodeDrag' || current.mode === 'nodeResize') {
       setNodes((nodesState) => replaceNode(nodesState, current.originNode))
     }
+    if (current.mode === 'marquee') {
+      setSelection(cloneSelection(current.previousSelection))
+    }
     setInteractionState(IDLE_INTERACTION)
   }
 
   const isPanning = interaction.mode === 'pan'
   const isDraggingNode = interaction.mode === 'nodeDrag' && interaction.hasMoved
   const isResizing = interaction.mode === 'nodeResize'
+  const isMarquee =
+    interaction.mode === 'marquee' && interaction.hasCrossedThreshold
   const draggingNodeId =
     interaction.mode === 'nodeDrag' ? interaction.nodeId : null
-  const selectedNode = nodes.find((node) => selection.has(node.id))
+
+  const marqueeRect =
+    interaction.mode === 'marquee' && interaction.hasCrossedThreshold
+      ? normalizeRectangle(interaction.startWorld, interaction.currentWorld)
+      : null
+
+  const previewIds =
+    marqueeRect !== null
+      ? selectIntersectingNodes(nodes, marqueeRect)
+      : null
+
+  const soleSelected =
+    previewIds === null && selection.size === 1
+      ? nodes.find((node) => selection.has(node.id))
+      : undefined
+
   const worldTransform = viewportWorldTransform(viewport)
   const originScreen = worldToScreen({ x: 0, y: 0 }, viewport)
 
   const canvasClassName = [
     styles.canvas,
+    tool === 'select' ? styles.canvasSelect : '',
     isPanning ? styles.canvasPanning : '',
     isDraggingNode || isResizing ? styles.canvasDraggingNode : '',
+    isMarquee ? styles.canvasMarquee : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -419,7 +535,7 @@ export default function CanvasWorkspace() {
         ref={svgRef}
         className={canvasClassName}
         role="application"
-        aria-label="Infinite canvas workspace. Drag background to pan, scroll to zoom, drag nodes to move, use corner handles to resize."
+        aria-label="Infinite canvas workspace. Use Hand to pan or Select for marquee selection. Scroll to zoom."
         tabIndex={0}
         onPointerDown={onBackgroundPointerDown}
         onPointerMove={onPointerMove}
@@ -477,19 +593,28 @@ export default function CanvasWorkspace() {
             pointerEvents="none"
           />
 
-          {nodes.map((node) => (
-            <NodeShape
-              key={node.id}
-              node={node}
-              selected={selection.has(node.id)}
-              dragging={draggingNodeId === node.id && isDraggingNode}
-              onPointerDown={onNodePointerDown}
-            />
-          ))}
+          {nodes.map((node) => {
+            const preview = previewIds?.has(node.id) ?? false
+            const selected = previewIds
+              ? false
+              : selection.has(node.id)
+            return (
+              <NodeShape
+                key={node.id}
+                node={node}
+                selected={selected}
+                preview={preview}
+                dragging={draggingNodeId === node.id && isDraggingNode}
+                onPointerDown={onNodePointerDown}
+              />
+            )
+          })}
 
-          {selectedNode ? (
+          {marqueeRect ? <Marquee rect={marqueeRect} /> : null}
+
+          {soleSelected ? (
             <ResizeHandles
-              node={selectedNode}
+              node={soleSelected}
               viewportScale={viewport.scale}
               onHandlePointerDown={onHandlePointerDown}
             />

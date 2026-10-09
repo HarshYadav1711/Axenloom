@@ -56,31 +56,33 @@ Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDra
 
 See `docs/Architecture.md` for full detail.
 
-## Controls (Phase 3)
+## Controls (Phase 4)
 
 | Input | Behavior |
 | --- | --- |
-| Drag workspace background | Pan the viewport (Hand mode); clears selection |
-| Click a node | Select that node (single selection) |
-| Drag a node | Move it in world space (zoom-independent) |
-| Drag a corner handle | Resize from that corner (min 32×32 world units) |
-| Mouse wheel / trackpad over workspace | Zoom toward the cursor (ignored during drag/resize) |
+| Hand / Select buttons | Switch editor mode (`aria-pressed`; disabled mid-gesture) |
+| Drag empty background (Hand) | Pan viewport; clears selection |
+| Drag empty background (Select) | World-space marquee with live intersection highlight |
+| Click empty background (Select) | Clear selection (no meaningful drag) |
+| Click / drag a node | Select and move (both modes) |
+| Drag a corner handle | Resize when exactly one node is selected |
+| Mouse wheel over workspace | Cursor-centered zoom (ignored during drag/resize/marquee) |
 | Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
 
-Zoom is clamped to 25%–400% (internal engineering bounds). Initial rectangles are fixed demonstration shapes, not persisted data.
+Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize.
 
-## Current status (Phase 3)
+## Current status (Phase 4)
 
 **Implemented**
 
-- Viewport pan / cursor-centered zoom / geometry tests
-- World-space sample nodes, selection, and dragging
-- Four-corner world-space resizing with minimum size
-- Resize/document unit tests
+- Viewport, nodes, selection, drag, and four-corner resize
+- Hand / Select modes
+- Real-time marquee selection with live highlighting
+- Rectangle normalize/intersect tests
 
 **Not implemented yet**
 
-- Marquee, create/delete tools
+- Create/delete tools
 - Undo/redo
 
 ## Planned phases
@@ -88,8 +90,8 @@ Zoom is clamped to 25%–400% (internal engineering bounds). Initial rectangles 
 0. Foundation and context lock — complete
 1. Viewport foundations — complete
 2. Node rendering and movement — complete
-3. Node resizing ← **current**
-4. Marquee selection
+3. Node resizing — complete
+4. Marquee selection ← **current**
 5. Editing tools
 6. Undo/redo
 7. Hardening and visual refinement

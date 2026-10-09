@@ -15,6 +15,12 @@
   stroke-width: 2;
 }
 
+.nodePreview {
+  stroke: var(--node-selected-stroke);
+  stroke-width: 2;
+  fill: color-mix(in srgb, var(--accent-soft) 70%, var(--node-fill));
+}
+
 .nodeDragging {
   cursor: grabbing;
 }

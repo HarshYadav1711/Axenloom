@@ -15,12 +15,20 @@
   outline: none;
 }
 
+.canvasSelect {
+  cursor: crosshair;
+}
+
 .canvasPanning {
   cursor: grabbing;
 }
 
 .canvasDraggingNode {
   cursor: grabbing;
+}
+
+.canvasMarquee {
+  cursor: crosshair;
 }
 
 .gridDot {
