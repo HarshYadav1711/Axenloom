@@ -183,23 +183,46 @@ Create/delete toolbar, history
 
 ## Phase 5 — Editing tools
 
+**Status:** complete (pending user commit)
+
 ### Scope
 
-Create shapes; delete selected; compact editor toolbar; functional control states
+Create rectangles; delete selection; compact Add/Delete controls; keyboard Delete/Backspace when safe; placement at viewport center with cascade offset; immutable document helpers; focused tests.
+
+### Expected files
+
+- `src/state/document.ts` — `addNode`, `deleteSelectedNodes`, `reconcileSelection`
+- `src/state/placement.ts`, `ids.ts`, `nodeDefaults.ts`, `keyboard.ts`
+- `src/canvas/EditActionsBar.tsx`
+- `src/state/editing.test.ts`
+- App chrome wiring to `CanvasWorkspace` imperative handle
 
 ### Acceptance criteria
 
-- Create adds nodes; delete removes selection
-- Toolbar controls are real (no fakes)
-- Active tool state is visible
+- Add Rectangle places a 160×100 world-unit node near the visible SVG center (screen-space cascade offset 24px, wrap every 8)
+- New node gets a unique stable ID and replaces selection
+- Delete Selection removes all selected nodes in one immutable update; disabled when empty
+- Delete/Backspace delete when idle and not in editable fields (no Ctrl/Cmd/Alt)
+- Create/delete refuse while a pointer gesture is active
+- Viewport unchanged by create/delete
+- Toolbar controls are real (no fakes); Hand/Select remain operational
+- Tests cover create/delete/placement/keyboard guards; full regression green
+
+### Verification
+
+`npm run typecheck && npm run lint && npm run test && npm run build` plus browser create/delete checks.
 
 ### Excluded
 
-Undo/redo (unless trivial wiring only — prefer Phase 6)
+Undo/redo, history stacks, copy/paste, duplicate, group transforms, persistence, new shape types, property inspector.
+
+### Stopping conditions
+
+Phase 5 report delivered; wait for approval before Phase 6.
 
 ### Proposed commit message
 
-`feat: add create and delete editing tools`
+`feat: add viewport-aware shape creation and selection deletion`
 
 ---
 

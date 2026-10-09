@@ -1,5 +1,8 @@
-import { useCallback, useState } from 'react'
-import CanvasWorkspace from '../canvas/CanvasWorkspace'
+import { useCallback, useRef, useState } from 'react'
+import CanvasWorkspace, {
+  type CanvasEditorHandle,
+} from '../canvas/CanvasWorkspace'
+import EditActionsBar from '../canvas/EditActionsBar'
 import ToolModeBar from '../canvas/ToolModeBar'
 import {
   DEFAULT_TOOL,
@@ -8,11 +11,13 @@ import {
 import styles from './App.module.css'
 
 /**
- * Application shell. Phase 4: Hand/Select modes and marquee selection.
+ * Application shell. Phase 5: create/delete controls + Hand/Select modes.
  */
 export default function App() {
+  const editorRef = useRef<CanvasEditorHandle>(null)
   const [tool, setTool] = useState<EditorTool>(DEFAULT_TOOL)
   const [gestureActive, setGestureActive] = useState(false)
+  const [selectionCount, setSelectionCount] = useState(0)
 
   const onToolChange = useCallback(
     (next: EditorTool) => {
@@ -25,6 +30,14 @@ export default function App() {
     [gestureActive],
   )
 
+  const onAddRectangle = useCallback(() => {
+    editorRef.current?.addRectangle()
+  }, [])
+
+  const onDeleteSelection = useCallback(() => {
+    editorRef.current?.deleteSelection()
+  }, [])
+
   return (
     <div className={styles.shell}>
       <header className={styles.chrome}>
@@ -34,19 +47,29 @@ export default function App() {
           <p className={styles.tagline}>Shape ideas without boundaries.</p>
         </div>
 
-        <ToolModeBar
-          tool={tool}
-          disabled={gestureActive}
-          onToolChange={onToolChange}
-        />
+        <div className={styles.tools}>
+          <ToolModeBar
+            tool={tool}
+            disabled={gestureActive}
+            onToolChange={onToolChange}
+          />
+          <EditActionsBar
+            selectionCount={selectionCount}
+            gestureActive={gestureActive}
+            onAddRectangle={onAddRectangle}
+            onDeleteSelection={onDeleteSelection}
+          />
+        </div>
 
-        <p className={styles.status}>Phase 4 · marquee</p>
+        <p className={styles.status}>Phase 5 · edit</p>
       </header>
 
       <main className={styles.workspace} aria-label="Canvas workspace">
         <CanvasWorkspace
+          ref={editorRef}
           tool={tool}
           onInteractionActiveChange={setGestureActive}
+          onSelectionChange={setSelectionCount}
         />
       </main>
     </div>

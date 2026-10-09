@@ -56,11 +56,14 @@ Planned interaction modes use an explicit state machine (`idle`, `pan`, `nodeDra
 
 See `docs/Architecture.md` for full detail.
 
-## Controls (Phase 4)
+## Controls (Phase 5)
 
 | Input | Behavior |
 | --- | --- |
 | Hand / Select buttons | Switch editor mode (`aria-pressed`; disabled mid-gesture) |
+| Add | Create a 160×100 world-unit rectangle near the visible SVG center |
+| Delete | Remove all selected nodes (disabled when selection empty or mid-gesture) |
+| Delete / Backspace keys | Same as Delete when editor is idle and focus is not in a text field |
 | Drag empty background (Hand) | Pan viewport; clears selection |
 | Drag empty background (Select) | World-space marquee with live intersection highlight |
 | Click empty background (Select) | Clear selection (no meaningful drag) |
@@ -69,20 +72,19 @@ See `docs/Architecture.md` for full detail.
 | Mouse wheel over workspace | Cursor-centered zoom (ignored during drag/resize/marquee) |
 | Zoom HUD (bottom-right) | Live zoom percentage from `viewport.scale` |
 
-Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize.
+Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict positive-area overlap (edge-only contact does not select). Multi-select does not enable group resize. New nodes use a 24px screen-space cascade (wraps every 8) so repeated Add does not stack identically. Create/delete never alter pan/zoom.
 
-## Current status (Phase 4)
+## Current status (Phase 5)
 
 **Implemented**
 
 - Viewport, nodes, selection, drag, and four-corner resize
-- Hand / Select modes
-- Real-time marquee selection with live highlighting
-- Rectangle normalize/intersect tests
+- Hand / Select modes and real-time marquee
+- Viewport-aware Add Rectangle and selection Delete
+- Safe keyboard Delete/Backspace
 
 **Not implemented yet**
 
-- Create/delete tools
 - Undo/redo
 
 ## Planned phases
@@ -91,8 +93,8 @@ Zoom is clamped to 25%–400% (internal engineering bounds). Marquee uses strict
 1. Viewport foundations — complete
 2. Node rendering and movement — complete
 3. Node resizing — complete
-4. Marquee selection ← **current**
-5. Editing tools
+4. Marquee selection — complete
+5. Editing tools ← **current**
 6. Undo/redo
 7. Hardening and visual refinement
 8. Final acceptance and submission

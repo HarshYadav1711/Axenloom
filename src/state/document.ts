@@ -1,8 +1,9 @@
 import type { CanvasNode, Selection } from '../types/editor'
 
 /**
- * Deterministic demonstration shapes for Phase 2.
+ * Deterministic demonstration shapes for Phase 2+.
  * Not simulated backend data — fixed sample editing objects near the world origin.
+ * Users can create and delete additional rectangles from Phase 5 onward.
  */
 const INITIAL_NODE_TEMPLATES: readonly CanvasNode[] = [
   { id: 'node-a', x: -40, y: -30, width: 120, height: 80 },
@@ -101,4 +102,57 @@ export function isValidNodeGeometry(node: CanvasNode): boolean {
     node.width > 0 &&
     node.height > 0
   )
+}
+
+/**
+ * Append a new node. Rejects duplicate IDs and invalid geometry.
+ * Does not mutate `nodes` or `node`.
+ *
+ * Phase 6 note: one successful add = one history transaction boundary.
+ */
+export function addNode(
+  nodes: readonly CanvasNode[],
+  node: CanvasNode,
+): CanvasNode[] {
+  if (!isValidNodeGeometry(node)) {
+    return [...nodes]
+  }
+  if (nodes.some((existing) => existing.id === node.id)) {
+    return [...nodes]
+  }
+  return [...nodes, { ...node }]
+}
+
+/**
+ * Remove every node whose id is in `selectedIds`.
+ * Unknown IDs are ignored. Empty selection is a no-op copy.
+ *
+ * Phase 6 note: one delete action (any count) = one history transaction.
+ */
+export function deleteSelectedNodes(
+  nodes: readonly CanvasNode[],
+  selectedIds: ReadonlySet<string>,
+): CanvasNode[] {
+  if (selectedIds.size === 0) {
+    return [...nodes]
+  }
+  return nodes.filter((node) => !selectedIds.has(node.id))
+}
+
+/** Drop selection IDs that no longer exist in the document. */
+export function reconcileSelection(
+  selection: Selection,
+  nodes: readonly CanvasNode[],
+): Selection {
+  if (selection.size === 0) {
+    return selection
+  }
+  const living = new Set(nodes.map((node) => node.id))
+  const next = new Set<string>()
+  for (const id of selection) {
+    if (living.has(id)) {
+      next.add(id)
+    }
+  }
+  return next
 }

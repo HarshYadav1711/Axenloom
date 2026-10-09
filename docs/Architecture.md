@@ -86,9 +86,12 @@ Discriminated union in `src/types/interaction.ts`:
 - `idle`
 - `pan` (Phase 1)
 - `nodeDrag` (Phase 2)
-- `resize` / `marquee` — reserved, not implemented
+- `nodeResize` (Phase 3)
+- `marquee` (Phase 4)
 
 Each active state carries pointer id and origin geometry for deterministic updates.
+
+Create and delete are discrete document actions (not interaction modes). They run only while interaction is `idle`.
 
 ### Phase 2 node drag (implemented)
 
@@ -116,6 +119,15 @@ Each active state carries pointer id and origin geometry for deterministic updat
 - Cancel restores `previousSelection`. Background click under the screen-pixel threshold clears selection.
 - Resize handles show only when exactly one node is selected (no multi-node resize).
 - Mode buttons disable while a gesture is active.
+
+### Phase 5 create / delete (implemented)
+
+- **Add Rectangle:** `placeNewNodeRect` converts SVG center (+ cascade offset) via `screenToWorld`; default size 160×100 world units (`DEFAULT_NODE_*`). IDs from `createNodeId()` (`crypto.randomUUID` when available). Appends via `addNode`; selection becomes the new id only. Viewport unchanged.
+- **Cascade:** successive creations offset by 24 screen px diagonally; wrap after 8 steps (`CREATION_OFFSET_*`).
+- **Delete Selection:** `deleteSelectedNodes` removes all selected IDs in one immutable filter; `reconcileSelection` clears stale IDs. Empty selection and active gestures block the action.
+- **Keyboard:** window `keydown` for Delete/Backspace when `shouldHandleDeleteKey` allows (not in input/textarea/contenteditable; no Ctrl/Cmd/Alt). Same pathway as the toolbar.
+- **Chrome:** `EditActionsBar` in App; document mutations owned by `CanvasWorkspace` via `CanvasEditorHandle` (`addRectangle` / `deleteSelection`).
+- **Phase 6 boundary:** one Add click = one future history transaction; one Delete (any count) = one transaction. No history stacks in Phase 5.
 
 ## Editor modes (internal decision)
 

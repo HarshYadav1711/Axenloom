@@ -1,6 +1,8 @@
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
@@ -25,13 +27,19 @@ import {
 } from '../geometry'
 import type { Point } from '../geometry/point'
 import {
+  addNode,
   createInitialNodes,
+  deleteSelectedNodes,
   emptySelection,
   moveNodeFromOrigin,
+  reconcileSelection,
   replaceNode,
   resizeNodeFromOrigin,
   selectOnly,
 } from '../state/document'
+import { createNodeId } from '../state/ids'
+import { shouldHandleDeleteKey } from '../state/keyboard'
+import { placeNewNodeRect } from '../state/placement'
 import {
   DEFAULT_TOOL,
   DEFAULT_VIEWPORT,
@@ -68,32 +76,48 @@ function isNodeOrHandleTarget(target: EventTarget | null): boolean {
   )
 }
 
+export type CanvasEditorHandle = {
+  /** Returns false when blocked (active gesture). */
+  addRectangle: () => boolean
+  /** Returns false when blocked or selection empty. */
+  deleteSelection: () => boolean
+}
+
 type CanvasWorkspaceProps = {
   tool?: EditorTool
   onInteractionActiveChange?: (active: boolean) => void
+  onSelectionChange?: (count: number) => void
 }
 
 /**
  * Interactive SVG workspace.
- * Phase 4: Hand/Select modes, marquee selection with live intersection preview.
+ * Phase 5: create/delete rectangles plus Phase 1–4 interactions.
  *
  * Coordinate assumption: SVG has no viewBox; user units = CSS pixels.
  *
  * Wheel zoom is ignored during node drag, resize, and marquee.
  * Resize handles appear only when exactly one node is selected (internal).
  *
- * Marquee cancel restores `previousSelection`. Successful release commits
- * intersecting IDs (or clears on a background click under threshold).
+ * Create/delete are discrete document actions (one click = one future
+ * history transaction in Phase 6). They refuse while a gesture is active.
  */
-export default function CanvasWorkspace({
-  tool = DEFAULT_TOOL,
-  onInteractionActiveChange,
-}: CanvasWorkspaceProps) {
+const CanvasWorkspace = forwardRef<CanvasEditorHandle, CanvasWorkspaceProps>(
+  function CanvasWorkspace(
+    {
+      tool = DEFAULT_TOOL,
+      onInteractionActiveChange,
+      onSelectionChange,
+    },
+    ref,
+  ) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const capturedPointerIdRef = useRef<number | null>(null)
   const interactionRef = useRef<InteractionState>(IDLE_INTERACTION)
   const didCenterOriginRef = useRef(false)
   const nodesRef = useRef<CanvasNode[]>([])
+  const selectionRef = useRef<Selection>(emptySelection())
+  const viewportRef = useRef<Viewport>(DEFAULT_VIEWPORT)
+  const creationIndexRef = useRef(0)
 
   const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT)
   const [nodes, setNodes] = useState<CanvasNode[]>(() => createInitialNodes())
@@ -104,6 +128,15 @@ export default function CanvasWorkspace({
   useEffect(() => {
     nodesRef.current = nodes
   }, [nodes])
+
+  useEffect(() => {
+    selectionRef.current = selection
+    onSelectionChange?.(selection.size)
+  }, [selection, onSelectionChange])
+
+  useEffect(() => {
+    viewportRef.current = viewport
+  }, [viewport])
 
   const setInteractionState = useCallback((next: InteractionState) => {
     interactionRef.current = next
@@ -251,9 +284,90 @@ export default function CanvasWorkspace({
     if (!svg) {
       return
     }
-    capturedPointerIdRef.current = pointerId
-    svg.setPointerCapture(pointerId)
+    try {
+      svg.setPointerCapture(pointerId)
+      capturedPointerIdRef.current = pointerId
+    } catch (error) {
+      // Inactive pointer IDs (e.g. synthetic events) throw NotFoundError.
+      // Do not crash the editor; leave capture unset.
+      console.warn('Pointer capture skipped for inactive pointer', error)
+    }
   }
+
+  const addRectangle = useCallback((): boolean => {
+    if (interactionRef.current.mode !== 'idle') {
+      return false
+    }
+    const svg = svgRef.current
+    if (!svg) {
+      return false
+    }
+    const { width: svgWidth, height: svgHeight } = svg.getBoundingClientRect()
+    const placed = placeNewNodeRect({
+      viewport: viewportRef.current,
+      svgWidth,
+      svgHeight,
+      creationIndex: creationIndexRef.current,
+    })
+    creationIndexRef.current += 1
+
+    const node: CanvasNode = {
+      id: createNodeId(),
+      x: placed.x,
+      y: placed.y,
+      width: placed.width,
+      height: placed.height,
+    }
+
+    setNodes((current) => addNode(current, node))
+    setSelection(selectOnly(node.id))
+    return true
+  }, [])
+
+  const deleteSelection = useCallback((): boolean => {
+    if (interactionRef.current.mode !== 'idle') {
+      return false
+    }
+    const selected = selectionRef.current
+    if (selected.size === 0) {
+      return false
+    }
+
+    const next = deleteSelectedNodes(nodesRef.current, selected)
+    setNodes(next)
+    setSelection(reconcileSelection(selected, next))
+    return true
+  }, [])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      addRectangle,
+      deleteSelection,
+    }),
+    [addRectangle, deleteSelection],
+  )
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!shouldHandleDeleteKey(event)) {
+        return
+      }
+      if (interactionRef.current.mode !== 'idle') {
+        return
+      }
+      if (selectionRef.current.size === 0) {
+        return
+      }
+      event.preventDefault()
+      deleteSelection()
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [deleteSelection])
 
   const onBackgroundPointerDown = (
     event: ReactPointerEvent<SVGSVGElement>,
@@ -636,4 +750,7 @@ export default function CanvasWorkspace({
       </p>
     </div>
   )
-}
+  },
+)
+
+export default CanvasWorkspace

@@ -11,7 +11,7 @@ Never mark planned work as verified.
 | REQ-03 | Cursor-anchored mouse-wheel zoom | Employer | 1 | Manual + unit: world point under cursor fixed in screen space | verified |
 | REQ-04 | World → screen conversion | Employer | 1 | Unit tests for known viewport/node fixtures | verified |
 | REQ-05 | Screen → world conversion | Employer | 1 | Unit tests; round-trip with REQ-04 | verified |
-| REQ-06 | Create shapes | Employer | 5 | Manual create; document node count increases; undoable later | pending |
+| REQ-06 | Create shapes | Employer | 5 | Manual create; document node count increases; undoable later | verified |
 | REQ-07 | Select shapes | Employer | 2 | Manual click selection; selection chrome visible | verified |
 | REQ-08 | Move shapes | Employer | 2 | Manual drag at multiple zoom levels; world delta correct | verified |
 | REQ-09 | Resize shapes | Employer | 3 | Manual handle drag; min size; correct under zoom | verified |
@@ -38,5 +38,7 @@ Phase 2 verification (2026-10-09): REQ-07–REQ-08 marked `verified` after docum
 Phase 3 verification (2026-10-09): REQ-09 marked `verified` after resize geometry/document tests plus browser corner-handle checks.
 
 Phase 4 verification (2026-10-09): REQ-10–REQ-11 and INT-01 marked `verified` after rectangle/marquee unit tests plus browser Hand/Select and live-highlight checks. REQ-13 remains `pending` for broader hardening. REQ-06 and REQ-12 remain `pending`.
+
+Phase 5 verification (2026-10-09): REQ-06 marked `verified` after create/delete unit tests plus browser Add Rectangle / Delete Selection / keyboard checks. Deletion of selection is covered with REQ-06 verification (no separate employer REQ id). REQ-12 remains `pending` for Phase 6. REQ-13 remains `pending` for broader hardening.
 
 **Missing source evidence:** `Legman_AI_Infinite_Canvas_Assignment_Handoff.pdf` is not present in the repository; phases follow `docs/PRD.md` / `docs/REQUIREMENTS_MATRIX.md`.
